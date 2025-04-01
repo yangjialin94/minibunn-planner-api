@@ -1,0 +1,55 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Local environment variables
+.env
+.env.*
+
+# macOS / system files
+.DS_Store
+
+# Editor folders
+.vscode/
+.idea/
+
+# Test & coverage reports
+.coverage
+htmlcov/
+coverage.xml
+pytest_cache/
+
+# SQLite database (dev only)
+*.sqlite3
+*.db
+
+# Migrations (optional, comment out if using Alembic)
+migrations/
+alembic/
+
+# Logs
+*.log
+
+# PyInstaller artifacts
+dist/
+build/
+*.spec
+
+# MyPy / Pyright
+.mypy_cache/
+.pyright/
+
+# VSCode test data
+__test__/
+
+# Temporary files
+*.swp
+*.bak
+*.tmp
