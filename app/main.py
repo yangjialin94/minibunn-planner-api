@@ -10,9 +10,9 @@ from app.routes import journals, tasks
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load models to register them with Base
-    from models import journal, task, user
+    from app.models import journal, task, user  # make sure these are app.models.XXX
 
-    # Create tables
+    # Recreate database schema
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
@@ -23,12 +23,11 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
-    # Yield control to the app
-    yield
+    yield  # App startup complete
 
 
-# Create FastAPI instance
-app = FastAPI()
+# Attach lifespan here
+app = FastAPI(lifespan=lifespan)
 
 # Include routers
 app.include_router(journals.router, prefix="/journals", tags=["journals"])

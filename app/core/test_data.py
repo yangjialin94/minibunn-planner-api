@@ -88,8 +88,35 @@ test_journals = [
         "date": date(2025, 3, 29),
         "subject": "Good Old Days",
         "entry": (
-            "Super happy to met with old friends we used to hangout with all the time back in Chicago!\n"
+            "Super happy to meet with old friends we used to hang out with all the time back in Chicago!\n"
             "Need to do this more often!"
         ),
-    }
+    },
+    {
+        "user_id": 1,
+        "date": date(2025, 3, 30),
+        "subject": "Reflection on Goals",
+        "entry": (
+            "Spent some time revisiting my goals for the year.\n"
+            "I'm a bit behind on fitness, but ahead on learning."
+        ),
+    },
+    {
+        "user_id": 1,
+        "date": date(2025, 3, 31),
+        "subject": "Solo Adventure",
+        "entry": (
+            "Tried hiking alone for the first time. Peaceful but also spooky near the end.\n"
+            "Not sure I'd do it again without a buddy."
+        ),
+    },
+    {
+        "user_id": 1,
+        "date": date(2025, 4, 1),
+        "subject": "Tech Dive",
+        "entry": (
+            "Finally understood how useEffect cleanup works in React.\n"
+            "Also cleaned up my GitHub profile a bit."
+        ),
+    },
 ]

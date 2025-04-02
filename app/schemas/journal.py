@@ -4,19 +4,9 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 
-class JournalBase(BaseModel):
-    """
-    Journal Base Pydantic Schema
-    """
-
-    date: date
-    subject: Optional[str] = ""
-    entry: Optional[str] = ""
-
-
 class JournalCreate(BaseModel):
     """
-    Journal Create Pydantic Schema
+    Journal Create Pydantic Schema (for POST requests)
     """
 
     date: date
@@ -26,7 +16,7 @@ class JournalCreate(BaseModel):
 
 class JournalUpdate(BaseModel):
     """
-    Journal Update Pydantic Schema
+    Journal Update Pydantic Schema (for PUT requests)
     """
 
     date: Optional[date] = None
@@ -34,11 +24,14 @@ class JournalUpdate(BaseModel):
     entry: Optional[str] = None
 
 
-class JournalOut(JournalCreate):
+class JournalOut(BaseModel):
     """
-    Journal Out Pydantic Schema
+    Journal Out Pydantic Schema (response to client)
     """
 
     id: int
+    date: date
+    subject: Optional[str] = ""
+    entry: Optional[str] = ""
 
     model_config = ConfigDict(from_attributes=True)
