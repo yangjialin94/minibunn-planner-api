@@ -1,94 +1,84 @@
 # test_data.py
-from datetime import date
+from datetime import date, timedelta
+from uuid import uuid4
+
+today = date.today()
+repeatable_id_1 = str(uuid4())
+repeatable_id_2 = str(uuid4())
 
 test_tasks = [
-    # 📅 2025-03-23
+    # Single tasks
     {
         "user_id": 1,
-        "title": "Family Breakfast",
-        "note": "Enjoy breakfast with family.",
-        "date": date(2025, 3, 23),
+        "date": today,
+        "title": "Buy groceries",
+        "note": "Milk, eggs, bread",
         "is_completed": False,
         "order": 1,
+        "repeatable_id": None,
+        "repeatable_days": None,
     },
-    # 📅 2025-03-24
     {
         "user_id": 1,
-        "title": "Office Meeting",
-        "note": "Weekly planning meeting.",
-        "date": date(2025, 3, 24),
+        "date": today + timedelta(days=1),
+        "title": "Workout",
+        "note": "Leg day at the gym",
         "is_completed": False,
         "order": 1,
+        "repeatable_id": None,
+        "repeatable_days": None,
     },
-    # 📅 2025-03-25
+    # Repeated task (3-day journal)
     {
         "user_id": 1,
-        "title": "Client Call",
-        "note": "Discuss project details.",
-        "date": date(2025, 3, 25),
-        "is_completed": False,
-        "order": 1,
-    },
-    # 📅 2025-03-26
-    {
-        "user_id": 1,
-        "title": "Code Review",
-        "note": "Review the latest commits.",
-        "date": date(2025, 3, 26),
-        "is_completed": True,
-        "order": 1,
-    },
-    # 📅 2025-03-27
-    {
-        "user_id": 1,
-        "title": "Team Sync",
-        "note": "Quick sync-up with the team.",
-        "date": date(2025, 3, 27),
-        "is_completed": False,
-        "order": 1,
-    },
-    # 📅 2025-03-28
-    {
-        "user_id": 1,
-        "title": "Morning Exercise",
-        "note": "Jog for 30 minutes.",
-        "date": date(2025, 3, 28),
-        "is_completed": True,
-        "order": 1,
-    },
-    {
-        "user_id": 1,
-        "title": "Buy Groceries",
-        "note": "Remember to pick up milk, eggs, and bread.",
-        "date": date(2025, 3, 28),
+        "date": today,
+        "title": "Write journal",
+        "note": "Reflect on the day",
         "is_completed": False,
         "order": 2,
+        "repeatable_id": repeatable_id_1,
+        "repeatable_days": 3,
     },
     {
         "user_id": 1,
-        "title": "Team Meeting",
-        "note": "Discuss project updates with the team.",
-        "date": date(2025, 3, 28),
+        "date": today + timedelta(days=1),
+        "title": "Write journal",
+        "note": "Reflect on the day",
+        "is_completed": False,
+        "order": 2,
+        "repeatable_id": repeatable_id_1,
+        "repeatable_days": 3,
+    },
+    {
+        "user_id": 1,
+        "date": today + timedelta(days=2),
+        "title": "Write journal",
+        "note": "Reflect on the day",
+        "is_completed": False,
+        "order": 1,
+        "repeatable_id": repeatable_id_1,
+        "repeatable_days": 3,
+    },
+    # Repeated task (2-day task)
+    {
+        "user_id": 1,
+        "date": today,
+        "title": "Study React",
+        "note": "Go through useEffect deep dive",
         "is_completed": False,
         "order": 3,
+        "repeatable_id": repeatable_id_2,
+        "repeatable_days": 2,
     },
-    # 📅 2025-03-29
     {
         "user_id": 1,
-        "title": "Evening Walk",
-        "note": "Relax with an evening walk after dinner.",
-        "date": date(2025, 3, 29),
+        "date": today + timedelta(days=1),
+        "title": "Study React",
+        "note": "Go through useEffect deep dive",
         "is_completed": False,
-        "order": 1,
-    },
-    # 📅 2025-03-30
-    {
-        "user_id": 1,
-        "title": "Dinner with Hanwen",
-        "note": "Find a hotpot place.",
-        "date": date(2025, 3, 30),
-        "is_completed": False,
-        "order": 1,
+        "order": 3,
+        "repeatable_id": repeatable_id_2,
+        "repeatable_days": 2,
     },
 ]
 

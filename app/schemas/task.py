@@ -14,6 +14,8 @@ class TaskBase(BaseModel):
     note: Optional[str] = ""
     is_completed: bool = False
     order: int
+    repeatable_id: Optional[str] = None
+    repeatable_days: Optional[int] = None
 
 
 class TaskCreate(BaseModel):
@@ -26,6 +28,8 @@ class TaskCreate(BaseModel):
     note: Optional[str] = ""
     is_completed: bool = False
     order: int
+    repeatable_id: Optional[str] = None
+    repeatable_days: Optional[int] = None
 
 
 class TaskUpdate(BaseModel):

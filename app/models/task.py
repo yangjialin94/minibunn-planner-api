@@ -17,5 +17,7 @@ class Task(Base):
     note = Column(String)
     is_completed = Column(Boolean, default=False)
     order = Column(Integer)
+    repeatable_id = Column(String, index=True, nullable=True)
+    repeatable_days = Column(Integer, nullable=True)
 
     user = relationship("User", back_populates="tasks")

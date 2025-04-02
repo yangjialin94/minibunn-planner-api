@@ -1,11 +1,13 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Optional
+from uuid import uuid4
 
 from core.database import get_db
 from deps.auth import get_user_id
 from fastapi import APIRouter, Depends, HTTPException
 from models.task import Task
 from schemas.task import TaskCreate, TaskOut, TaskUpdate
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 # Create a router
@@ -36,20 +38,44 @@ def create_task(
 ):
     """
     Create a new task for the current user.
+    If repeatable_days is provided, create multiple tasks with the same repeatable_id.
     """
-    # Get the current max order for this user and date
-    max_order = (
-        db.query(func.max(Task.order))
-        .filter(Task.user_id == user_id, Task.date == task.date)
-        .scalar()
-    )
-    new_order = (max_order or 0) + 1
+    # Generate repeatable_id if task is repeatable
+    repeatable_days = task.repeatable_days or 1
+    repeatable_id = str(uuid4()) if repeatable_days > 1 else None
 
-    db_task = Task(**task.dict(), user_id=user_id)
-    db.add(db_task)
+    # Create the task(s)
+    created_tasks = []
+    for i in range(repeatable_days):
+        task_date = task.date + timedelta(days=i)
+
+        # Get the current max order for this user and date
+        max_order = (
+            db.query(func.max(Task.order))
+            .filter(Task.user_id == user_id, Task.date == task_date)
+            .scalar()
+        )
+        new_order = (max_order or 0) + 1
+
+        new_task = Task(
+            user_id=user_id,
+            date=task_date,
+            title=task.title,
+            note=task.note,
+            is_completed=task.is_completed,
+            order=new_order,
+            repeatable_id=repeatable_id,
+            repeatable_days=repeatable_days if repeatable_id else None,
+        )
+
+        db.add(new_task)
+        created_tasks.append(new_task)
+
     db.commit()
-    db.refresh(db_task)
-    return db_task
+
+    # Return the first task created
+    db.refresh(created_tasks[0])
+    return created_tasks[0]
 
 
 @router.patch("/{task_id}", response_model=TaskOut)
@@ -61,6 +87,7 @@ def update_task(
 ):
     """
     Update a task for the current user.
+    If the task is repeatable, update all tasks with the same repeatable_id.
     """
     task = db.query(Task).filter(Task.id == task_id, Task.user_id == user_id).first()
     if not task:
@@ -98,11 +125,46 @@ def update_task(
 
         task.order = new_order
 
-    # Update other task fields
-    for key, value in update_data.items():
-        # Skip the order field
-        if key != "order":
-            setattr(task, key, value)
+    update_title_or_note = any(k in update_data for k in ["title", "note"])
+
+    # Check if the task is repeatable
+    if task.repeatable_id and update_title_or_note:
+        old_repeatable_id = task.repeatable_id
+        new_repeatable_id = str(uuid4())
+
+        future_tasks = (
+            db.query(Task)
+            .filter(
+                Task.user_id == user_id,
+                Task.repeatable_id == old_repeatable_id,
+                Task.date > task.date,
+            )
+            .all()
+        )
+
+        new_repeatable_days = len(future_tasks) + 1
+
+        # Update the current task
+        for key, value in update_data.items():
+            if key != "order":
+                setattr(task, key, value)
+        task.repeatable_id = new_repeatable_id
+        task.repeatable_days = new_repeatable_days
+
+        # Update other tasks with the same repeatable_id
+        for future_task in future_tasks:
+            if "title" in update_data:
+                future_task.title = update_data["title"]
+            if "note" in update_data:
+                future_task.note = update_data["note"]
+            future_task.repeatable_id = new_repeatable_id
+            future_task.repeatable_days = new_repeatable_days
+    else:
+        # Update the current task
+        for key, value in update_data.items():
+            # Skip the order field
+            if key != "order":
+                setattr(task, key, value)
 
     db.commit()
     db.refresh(task)
@@ -117,10 +179,49 @@ def delete_task(
 ):
     """
     Delete a task for the current user.
+    If the task is repeatable, delete all tasks with the same repeatable_id.
     """
     task = db.query(Task).filter(Task.id == task_id, Task.user_id == user_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    db.delete(task)
+
+    affected_dates = []
+
+    # Check if the task is repeatable
+    if task.repeatable_id:
+        tasks_to_delete = (
+            db.query(Task)
+            .filter(
+                Task.user_id == user_id,
+                Task.repeatable_id == task.repeatable_id,
+                Task.date >= task.date,
+            )
+            .all()
+        )
+
+        affected_dates = list(set(t.date for t in tasks_to_delete))
+
+        # Delete all tasks with the same repeatable_id
+        for t in tasks_to_delete:
+            db.delete(t)
+    else:
+        # Delete the single task
+        affected_dates = [task.date]
+        db.delete(task)
+
     db.commit()
-    return {"message": "Task deleted"}
+
+    # Reorder the remaining tasks
+    for d in affected_dates:
+        remaining_tasks = (
+            db.query(Task)
+            .filter(Task.user_id == user_id, Task.date == d)
+            .order_by(Task.order)
+            .all()
+        )
+
+        for i, t in enumerate(remaining_tasks, start=1):
+            t.order = i
+
+    db.commit()
+    return {"message": "Task(s) deleted and reordered"}
