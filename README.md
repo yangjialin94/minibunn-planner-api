@@ -1,3 +1,16 @@
+# Run
+
+```shell
+source .venv/bin/activate
+univorn app.main:app --reload
+```
+
+# Test
+
+```shell
+pytest -v
+```
+
 # File Structure
 
 ```
