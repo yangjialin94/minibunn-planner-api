@@ -2,13 +2,14 @@ from datetime import date, timedelta
 from typing import List, Optional
 from uuid import uuid4
 
-from core.database import get_db
-from deps.auth import get_user_id
 from fastapi import APIRouter, Depends, HTTPException
-from models.task import Task
-from schemas.task import TaskCreate, TaskOut, TaskUpdate
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.deps.auth import get_user_id
+from app.models.task import Task
+from app.schemas.task import TaskCreate, TaskOut, TaskUpdate
 
 # Create a router
 router = APIRouter()
@@ -93,7 +94,7 @@ def update_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    update_data = updates.dict(exclude_unset=True)
+    update_data = updates.model_dump(exclude_unset=True)
     new_order = update_data.get("order")
 
     # Handle order reordering

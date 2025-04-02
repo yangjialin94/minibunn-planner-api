@@ -1,11 +1,11 @@
-# core/init_db.py
 from datetime import date
 
-from core.test_data import test_journals, test_tasks
-from models.journal import Journal
-from models.task import Task
-from models.user import User
 from sqlalchemy.orm import Session
+
+from app.core.test_data import test_journals, test_tasks
+from app.models.journal import Journal
+from app.models.task import Task
+from app.models.user import User
 
 
 def init_test_data(db: Session):

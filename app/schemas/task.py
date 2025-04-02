@@ -1,40 +1,25 @@
 from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel
-
-
-class TaskBase(BaseModel):
-    """
-    Task Base Pydantic Schema
-    """
-
-    date: date
-    title: Optional[str] = ""
-    note: Optional[str] = ""
-    is_completed: bool = False
-    order: int
-    repeatable_id: Optional[str] = None
-    repeatable_days: Optional[int] = None
+from pydantic import BaseModel, ConfigDict
 
 
 class TaskCreate(BaseModel):
     """
-    Task Create Pydantic Schema
+    Task Create Pydantic Schema (for POST requests)
     """
 
     date: date
     title: Optional[str] = ""
     note: Optional[str] = ""
     is_completed: bool = False
-    order: int
     repeatable_id: Optional[str] = None
     repeatable_days: Optional[int] = None
 
 
 class TaskUpdate(BaseModel):
     """
-    Task Update Pydantic Schema
+    Task Update Pydantic Schema (for PUT requests)
     """
 
     date: Optional[date] = None
@@ -44,12 +29,18 @@ class TaskUpdate(BaseModel):
     order: Optional[int] = None
 
 
-class TaskOut(TaskCreate):
+class TaskOut(BaseModel):
     """
-    Task Out Pydantic Schema
+    Task Out Pydantic Schema (response to client)
     """
 
     id: int
+    date: date
+    title: Optional[str]
+    note: Optional[str]
+    is_completed: bool
+    order: int
+    repeatable_id: Optional[str]
+    repeatable_days: Optional[int]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

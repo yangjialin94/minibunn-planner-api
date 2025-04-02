@@ -1,12 +1,13 @@
 from datetime import date
 from typing import List, Optional
 
-from core.database import get_db
-from deps.auth import get_user_id
 from fastapi import APIRouter, Depends, HTTPException
-from models.journal import Journal
-from schemas.journal import JournalCreate, JournalOut
 from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.deps.auth import get_user_id
+from app.models.journal import Journal
+from app.schemas.journal import JournalCreate, JournalOut
 
 # Create a router
 router = APIRouter()

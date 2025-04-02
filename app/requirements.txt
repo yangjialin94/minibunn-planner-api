@@ -3,3 +3,5 @@ uvicorn
 sqlalchemy
 black
 psycopg2
+pytest
+httpx

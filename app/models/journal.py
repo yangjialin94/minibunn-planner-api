@@ -1,6 +1,7 @@
-from core.database import Base
 from sqlalchemy import Column, Date, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
+
+from app.core.database import Base
 
 
 class Journal(Base):
