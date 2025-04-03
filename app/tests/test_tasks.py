@@ -286,3 +286,67 @@ def test_update_is_completed_to_incomplete_moves_before_completed(client):
     assert (
         ordered_titles == expected_order
     ), f"Expected order {expected_order}, got {ordered_titles}"
+
+
+def test_completion_status_route(client):
+    """
+    Tests that the completion status route returns the correct summary.
+    """
+    # Define dates
+    day1 = date.today()
+    day2 = day1 + timedelta(days=1)
+    day1_str = day1.isoformat()
+    day2_str = day2.isoformat()
+
+    # Create tasks for Day 1.
+    res = client.post(
+        "/tasks/",
+        json={"date": day1_str, "title": "Task 1", "note": "", "is_completed": True},
+    )
+    assert res.status_code == 200
+
+    res = client.post(
+        "/tasks/",
+        json={"date": day1_str, "title": "Task 2", "note": "", "is_completed": True},
+    )
+    assert res.status_code == 200
+
+    res = client.post(
+        "/tasks/",
+        json={"date": day1_str, "title": "Task 3", "note": "", "is_completed": False},
+    )
+    assert res.status_code == 200
+
+    # Create tasks for Day 2.
+    res = client.post(
+        "/tasks/",
+        json={"date": day2_str, "title": "Task 4", "note": "", "is_completed": True},
+    )
+    assert res.status_code == 200
+
+    res = client.post(
+        "/tasks/",
+        json={"date": day2_str, "title": "Task 5", "note": "", "is_completed": False},
+    )
+    assert res.status_code == 200
+
+    # Query the /completion/ endpoint for the range covering both days.
+    res = client.get(f"/tasks/completion/?start={day1_str}&end={day2_str}")
+    assert res.status_code == 200
+    data = res.json()
+
+    # Expected summaries for each day.
+    expected = [
+        {"date": day1_str, "total": 3, "completed": 2},
+        {"date": day2_str, "total": 2, "completed": 1},
+    ]
+
+    assert len(data) == len(
+        expected
+    ), f"Expected {len(expected)} days but got {len(data)}."
+
+    # Check each day's summary.
+    for result, exp in zip(data, expected):
+        assert result["date"] == exp["date"]
+        assert result["total"] == exp["total"]
+        assert result["completed"] == exp["completed"]

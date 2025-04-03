@@ -3,13 +3,13 @@ from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.deps.auth import get_user_id
 from app.models.task import Task
-from app.schemas.task import TaskCreate, TaskOut, TaskUpdate
+from app.schemas.task import CompletionOut, TaskCreate, TaskOut, TaskUpdate
 
 # Create a router
 router = APIRouter()
@@ -279,3 +279,43 @@ def delete_task(
 
     db.commit()
     return {"message": "Task(s) deleted and reordered"}
+
+
+@router.get("/completion/", response_model=List[CompletionOut])
+def get_completion_status(
+    start: date,
+    end: date,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_user_id),
+):
+    # Create an expression to sum up completed tasks (1 if completed, else 0)
+    completed_sum = func.sum(case((Task.is_completed == True, 1), else_=0)).label(
+        "completed"
+    )
+
+    # Query for each day: count total tasks and sum the completed tasks.
+    results = (
+        db.query(
+            Task.date,
+            func.count(Task.id).label("total"),
+            completed_sum,
+        )
+        .filter(
+            Task.user_id == user_id,
+            Task.date.between(start, end),
+        )
+        .group_by(Task.date)
+        .order_by(Task.date)
+        .all()
+    )
+
+    # Format the results
+    completions = [
+        {
+            "date": row.date,
+            "total": row.total,
+            "completed": row.completed or 0,
+        }
+        for row in results
+    ]
+    return completions

@@ -43,3 +43,15 @@ class TaskOut(BaseModel):
     repeatable_days: Optional[int]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CompletionOut(BaseModel):
+    """
+    Completion Out Pydantic Schema (response to client)
+    """
+
+    date: date
+    total: int
+    completed: int
+
+    model_config = ConfigDict(from_attributes=True)
