@@ -45,6 +45,10 @@ def create_task(
     repeatable_days = task.repeatable_days or 1
     repeatable_id = str(uuid4()) if repeatable_days > 1 else None
 
+    # Add default title if not provided
+    if not task.title:
+        task.title = "New Task"
+
     # Create the task(s)
     created_tasks = []
     for i in range(repeatable_days):
@@ -95,10 +99,25 @@ def update_task(
         raise HTTPException(status_code=404, detail="Task not found")
 
     update_data = updates.model_dump(exclude_unset=True)
-    new_order = update_data.get("order")
 
-    # Handle order reordering
-    if new_order is not None and new_order != task.order:
+    # Enforce only one type of update at a time
+    update_fields = set(update_data.keys())
+    groups = {
+        "order": {"order"},
+        "text": {"title", "note"},
+        "completed": {"is_completed"},
+    }
+
+    matched_groups = [group for group, keys in groups.items() if update_fields & keys]
+    if len(matched_groups) > 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Only one type of update is allowed per request (order, title/note, or is_completed).",
+        )
+
+    # Handle order update
+    if "order" in update_fields:
+        new_order = update_data.get("order")
         if new_order < 1:
             raise HTTPException(status_code=400, detail="Order must be 1 or greater")
 
@@ -126,46 +145,70 @@ def update_task(
 
         task.order = new_order
 
-    update_title_or_note = any(k in update_data for k in ["title", "note"])
+    # Handle title/note update
+    elif {"title", "note"} & update_fields:
+        update_title_or_note = any(k in update_data for k in ["title", "note"])
 
-    # Check if the task is repeatable
-    if task.repeatable_id and update_title_or_note:
-        old_repeatable_id = task.repeatable_id
-        new_repeatable_id = str(uuid4())
+        # Check if the task is repeatable
+        if task.repeatable_id and update_title_or_note:
+            old_repeatable_id = task.repeatable_id
+            new_repeatable_id = str(uuid4())
 
-        future_tasks = (
-            db.query(Task)
-            .filter(
-                Task.user_id == user_id,
-                Task.repeatable_id == old_repeatable_id,
-                Task.date > task.date,
+            future_tasks = (
+                db.query(Task)
+                .filter(
+                    Task.user_id == user_id,
+                    Task.repeatable_id == old_repeatable_id,
+                    Task.date > task.date,
+                )
+                .all()
             )
-            .all()
-        )
 
-        new_repeatable_days = len(future_tasks) + 1
+            new_repeatable_days = len(future_tasks) + 1
 
-        # Update the current task
-        for key, value in update_data.items():
-            if key != "order":
+            # Update the current task
+            for key, value in update_data.items():
                 setattr(task, key, value)
-        task.repeatable_id = new_repeatable_id
-        task.repeatable_days = new_repeatable_days
+            task.repeatable_id = new_repeatable_id
+            task.repeatable_days = new_repeatable_days
 
-        # Update other tasks with the same repeatable_id
-        for future_task in future_tasks:
-            if "title" in update_data:
-                future_task.title = update_data["title"]
-            if "note" in update_data:
-                future_task.note = update_data["note"]
-            future_task.repeatable_id = new_repeatable_id
-            future_task.repeatable_days = new_repeatable_days
-    else:
-        # Update the current task
-        for key, value in update_data.items():
-            # Skip the order field
-            if key != "order":
+            # Update other tasks with the same repeatable_id
+            for future_task in future_tasks:
+                if "title" in update_data:
+                    future_task.title = update_data["title"]
+                if "note" in update_data:
+                    future_task.note = update_data["note"]
+                future_task.repeatable_id = new_repeatable_id
+                future_task.repeatable_days = new_repeatable_days
+        else:
+            # Update the current task
+            for key, value in update_data.items():
                 setattr(task, key, value)
+
+    # Handle is_completed update
+    elif "is_completed" in update_fields:
+        new_status = update_data["is_completed"]
+        task.is_completed = new_status
+
+        # Reorder tasks
+        if new_status:
+            # Get all same-day tasks excluding this one, ordered by current order
+            same_day_tasks = (
+                db.query(Task)
+                .filter(
+                    Task.user_id == user_id, Task.date == task.date, Task.id != task.id
+                )
+                .order_by(Task.order)
+                .all()
+            )
+
+            # Shift tasks after the current one up by one
+            for t in same_day_tasks:
+                if t.order > task.order:
+                    t.order -= 1
+
+            # Place current task at the end
+            task.order = len(same_day_tasks) + 1
 
     db.commit()
     db.refresh(task)

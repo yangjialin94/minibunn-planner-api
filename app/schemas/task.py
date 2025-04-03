@@ -10,7 +10,7 @@ class TaskCreate(BaseModel):
     """
 
     date: date
-    title: Optional[str] = ""
+    title: str
     note: Optional[str] = ""
     is_completed: bool = False
     repeatable_id: Optional[str] = None
@@ -22,7 +22,6 @@ class TaskUpdate(BaseModel):
     Task Update Pydantic Schema (for PUT requests)
     """
 
-    date: Optional[date] = None
     title: Optional[str] = None
     note: Optional[str] = None
     is_completed: Optional[bool] = None

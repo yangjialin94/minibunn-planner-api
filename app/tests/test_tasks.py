@@ -58,7 +58,7 @@ def test_update_repeatable_title_and_split_chain(client):
     Should update current + future tasks with new repeatable_id.
     Past tasks should remain unchanged.
     """
-    # Create a repeatable task
+    # Create a repeatable task chain for 3 days
     today = date.today().isoformat()
     res = client.post(
         "/tasks/",
@@ -70,22 +70,59 @@ def test_update_repeatable_title_and_split_chain(client):
         },
     )
     task = res.json()
+    old_repeatable_id = task["repeatable_id"]
     task_id = task["id"]
 
-    # Update title of the first task
+    # Update the title of the first task
     patch = client.patch(f"/tasks/{task_id}", json={"title": "Updated"})
     assert patch.status_code == 200
-    assert patch.json()["title"] == "Updated"
+    updated_task = patch.json()
+    assert updated_task["title"] == "Updated"
 
-    # Check all tasks have the new title
+    # Check that the repeatable_id has changed
+    new_repeatable_id = updated_task["repeatable_id"]
+    assert new_repeatable_id is not None
+    assert new_repeatable_id != old_repeatable_id
+    assert updated_task["repeatable_days"] == 3
+
+    # Verify that the first task has the new repeatable_id
     end = (date.today() + timedelta(days=2)).isoformat()
     query = client.get(f"/tasks/?start={today}&end={end}")
-    titles = [t["title"] for t in query.json()]
-    assert titles == ["Updated"] * 3
+    chain_tasks = query.json()
+    for t in chain_tasks:
+        if t["title"] == "Updated":
+            assert t["repeatable_id"] == new_repeatable_id
+            assert t["repeatable_days"] == 3
 
-    # Check all tasks have the same repeatable_id
-    ids = [t["repeatable_id"] for t in query.json()]
-    assert len(set(ids)) == 1
+    # Ensure that the past tasks are unchanged
+    assert len([t for t in chain_tasks if t["title"] == "Updated"]) == 3
+
+
+def test_patch_multiple_update_types_fails(client):
+    """
+    Tests that mixing update groups (e.g., order and text fields)
+    in a single patch request results in a 400 error.
+    """
+    today = date.today().isoformat()
+    res = client.post(
+        "/tasks/",
+        json={
+            "date": today,
+            "title": "Mixed Update",
+            "note": "Initial note",
+            "repeatable_days": 2,
+        },
+    )
+    task = res.json()
+    task_id = task["id"]
+
+    # Attempt to update both order and title in one request
+    patch = client.patch(f"/tasks/{task_id}", json={"order": 2, "title": "New Title"})
+    assert patch.status_code == 400
+
+    # Check the error message
+    error_detail = patch.json().get("detail", "")
+    assert "Only one type of update" in error_detail
 
 
 def test_delete_repeatable_and_reorder_remaining(client):
