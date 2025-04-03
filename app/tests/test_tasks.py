@@ -186,3 +186,57 @@ def test_reorder_task_within_day(client):
     updated = client.get(f"/tasks/?start={today}&end={today}").json()
     ordered_titles = [t["title"] for t in sorted(updated, key=lambda x: x["order"])]
     assert ordered_titles == ["Task 2", "Task 3", "Task 1"]
+
+
+def test_update_is_completed_to_incomplete_moves_before_completed(client):
+    """
+    Tests that when a task is updated from completed (True) to incomplete (False),
+    it is moved to just before the first completed task on the same day.
+    """
+    # Create 4 tasks on the same day
+    today = date.today().isoformat()
+    titles = ["Task A", "Task B", "Task C", "Task D"]
+    for title in titles:
+        client.post(
+            "/tasks/",
+            json={"date": today, "title": title, "note": ""},
+        )
+
+    # Mark Task C and Task D as complete (in order)
+    res = client.get(f"/tasks/?start={today}&end={today}")
+    tasks = res.json()
+    task_ids = {t["title"]: t["id"] for t in tasks}
+
+    # Mark Task C as complete
+    patch_c = client.patch(f"/tasks/{task_ids['Task C']}", json={"is_completed": True})
+    assert patch_c.status_code == 200
+
+    # Mark Task D as complete
+    patch_d = client.patch(f"/tasks/{task_ids['Task D']}", json={"is_completed": True})
+    assert patch_d.status_code == 200
+
+    # Retrieve and verify the order after marking as complete
+    res = client.get(f"/tasks/?start={today}&end={today}")
+    tasks = sorted(res.json(), key=lambda t: t["order"])
+    orders = {t["title"]: t["order"] for t in tasks}
+    assert orders["Task A"] == 1
+    assert orders["Task B"] == 2
+    assert orders["Task C"] == 3
+    assert orders["Task D"] == 4
+
+    # Mark Task D as incomplete
+    patch_d_incomplete = client.patch(
+        f"/tasks/{task_ids['Task D']}", json={"is_completed": False}
+    )
+    assert patch_d_incomplete.status_code == 200
+    updated_d = patch_d_incomplete.json()
+    assert updated_d["is_completed"] is False
+
+    # Check the order after marking Task D as incomplete
+    res = client.get(f"/tasks/?start={today}&end={today}")
+    tasks = sorted(res.json(), key=lambda t: t["order"])
+    ordered_titles = [t["title"] for t in tasks]
+    expected_order = ["Task A", "Task B", "Task D", "Task C"]
+    assert (
+        ordered_titles == expected_order
+    ), f"Expected order {expected_order}, got {ordered_titles}"
