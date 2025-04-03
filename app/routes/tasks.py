@@ -54,13 +54,10 @@ def create_task(
     for i in range(repeatable_days):
         task_date = task.date + timedelta(days=i)
 
-        # Get the current max order for this user and date
-        max_order = (
-            db.query(func.max(Task.order))
-            .filter(Task.user_id == user_id, Task.date == task_date)
-            .scalar()
+        # Shift existing tasks' order by 1
+        db.query(Task).filter(Task.user_id == user_id, Task.date == task_date).update(
+            {Task.order: Task.order + 1}
         )
-        new_order = (max_order or 0) + 1
 
         new_task = Task(
             user_id=user_id,
@@ -68,7 +65,7 @@ def create_task(
             title=task.title,
             note=task.note,
             is_completed=task.is_completed,
-            order=new_order,
+            order=1,
             repeatable_id=repeatable_id,
             repeatable_days=repeatable_days if repeatable_id else None,
         )

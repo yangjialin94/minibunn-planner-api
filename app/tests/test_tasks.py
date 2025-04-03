@@ -52,6 +52,44 @@ def test_create_repeated_tasks(client):
     assert len(set(t["repeatable_id"] for t in repeated)) == 1
 
 
+def test_create_task_inserts_at_beginning(client):
+    """
+    Tests that creating a new task for a given date inserts it at order 1.
+    Existing tasks for the same date are shifted down (their order is incremented).
+    """
+    # Create a task for today
+    today = date.today().isoformat()
+    res1 = client.post(
+        "/tasks/",
+        json={"date": today, "title": "First Task", "note": ""},
+    )
+
+    # Verify the order of the first task
+    assert res1.status_code == 200
+    first_task = res1.json()
+    assert first_task["order"] == 1
+
+    # Create a second task for the same date
+    res2 = client.post(
+        "/tasks/",
+        json={"date": today, "title": "Second Task", "note": ""},
+    )
+
+    # Verify the order of the second task
+    assert res2.status_code == 200
+    second_task = res2.json()
+    assert second_task["order"] == 1
+
+    # Check that the first task's order has been incremented
+    res = client.get(f"/tasks/?start={today}&end={today}")
+    tasks = sorted(res.json(), key=lambda t: t["order"])
+    ordered_titles = [t["title"] for t in tasks]
+    expected_order = ["Second Task", "First Task"]
+    assert (
+        ordered_titles == expected_order
+    ), f"Expected order {expected_order}, got {ordered_titles}"
+
+
 def test_update_repeatable_title_and_split_chain(client):
     """
     Tests updating a repeatable task's title.
@@ -176,16 +214,20 @@ def test_reorder_task_within_day(client):
             json={"date": today, "title": f"Task {i+1}", "note": ""},
         )
 
-    # Move Task 1 to position 3
+    # Reorder "Task 1" to be first
     res = client.get(f"/tasks/?start={today}&end={today}")
-    task_id = next(t["id"] for t in res.json() if t["title"] == "Task 1")
-    patch = client.patch(f"/tasks/{task_id}", json={"order": 3})
+    tasks = res.json()
+    task1_id = next(t["id"] for t in tasks if t["title"] == "Task 1")
+    patch = client.patch(f"/tasks/{task1_id}", json={"order": 1})
     assert patch.status_code == 200
 
-    # Check final order is [Task 2, Task 3, Task 1]
+    # Check the order after reordering
     updated = client.get(f"/tasks/?start={today}&end={today}").json()
     ordered_titles = [t["title"] for t in sorted(updated, key=lambda x: x["order"])]
-    assert ordered_titles == ["Task 2", "Task 3", "Task 1"]
+    expected_order = ["Task 1", "Task 3", "Task 2"]
+    assert (
+        ordered_titles == expected_order
+    ), f"Expected order {expected_order}, got {ordered_titles}"
 
 
 def test_update_is_completed_to_incomplete_moves_before_completed(client):
@@ -193,7 +235,7 @@ def test_update_is_completed_to_incomplete_moves_before_completed(client):
     Tests that when a task is updated from completed (True) to incomplete (False),
     it is moved to just before the first completed task on the same day.
     """
-    # Create 4 tasks on the same day
+    # Create 4 tasks on the same day.
     today = date.today().isoformat()
     titles = ["Task A", "Task B", "Task C", "Task D"]
     for title in titles:
@@ -202,29 +244,30 @@ def test_update_is_completed_to_incomplete_moves_before_completed(client):
             json={"date": today, "title": title, "note": ""},
         )
 
-    # Mark Task C and Task D as complete (in order)
+    # Retrieve tasks and check initial order.
     res = client.get(f"/tasks/?start={today}&end={today}")
     tasks = res.json()
     task_ids = {t["title"]: t["id"] for t in tasks}
 
-    # Mark Task C as complete
+    # Mark Task C as complete.
     patch_c = client.patch(f"/tasks/{task_ids['Task C']}", json={"is_completed": True})
     assert patch_c.status_code == 200
 
-    # Mark Task D as complete
+    # Mark Task D as complete.
     patch_d = client.patch(f"/tasks/{task_ids['Task D']}", json={"is_completed": True})
     assert patch_d.status_code == 200
 
-    # Retrieve and verify the order after marking as complete
+    # After marking complete, expected order becomes:
+    # Order 1: Task B, Order 2: Task A, Order 3: Task C, Order 4: Task D.
     res = client.get(f"/tasks/?start={today}&end={today}")
     tasks = sorted(res.json(), key=lambda t: t["order"])
     orders = {t["title"]: t["order"] for t in tasks}
-    assert orders["Task A"] == 1
-    assert orders["Task B"] == 2
+    assert orders["Task B"] == 1
+    assert orders["Task A"] == 2
     assert orders["Task C"] == 3
     assert orders["Task D"] == 4
 
-    # Mark Task D as incomplete
+    # Now update Task D to be incomplete.
     patch_d_incomplete = client.patch(
         f"/tasks/{task_ids['Task D']}", json={"is_completed": False}
     )
@@ -232,11 +275,14 @@ def test_update_is_completed_to_incomplete_moves_before_completed(client):
     updated_d = patch_d_incomplete.json()
     assert updated_d["is_completed"] is False
 
-    # Check the order after marking Task D as incomplete
+    # Retrieve tasks and verify new ordering.
     res = client.get(f"/tasks/?start={today}&end={today}")
     tasks = sorted(res.json(), key=lambda t: t["order"])
     ordered_titles = [t["title"] for t in tasks]
-    expected_order = ["Task A", "Task B", "Task D", "Task C"]
+
+    # Expected final order:
+    # Order 1: Task B, Order 2: Task A, Order 3: Task D, Order 4: Task C.
+    expected_order = ["Task B", "Task A", "Task D", "Task C"]
     assert (
         ordered_titles == expected_order
     ), f"Expected order {expected_order}, got {ordered_titles}"
