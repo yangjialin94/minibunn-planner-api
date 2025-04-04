@@ -6,12 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import Base, engine, get_db
 from app.core.init_db import init_test_data
 from app.routes import journals, tasks
+from app.scheduler import start_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load models to register them with Base
-    from app.models import journal, task, user  # make sure these are app.models.XXX
+    from app.models import journal, task, user
 
     # Recreate database schema
     Base.metadata.drop_all(bind=engine)
@@ -23,6 +24,9 @@ async def lifespan(app: FastAPI):
         init_test_data(db)
     finally:
         db.close()
+
+    # Initialize the scheduler
+    start_scheduler()
 
     yield  # App startup complete
 

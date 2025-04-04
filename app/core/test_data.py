@@ -85,7 +85,7 @@ test_tasks = [
 test_journals = [
     {
         "user_id": 1,
-        "date": date(2025, 3, 29),
+        "date": today - timedelta(days=3),
         "subject": "Good Old Days",
         "entry": (
             "Super happy to meet with old friends we used to hang out with all the time back in Chicago!\n"
@@ -94,7 +94,7 @@ test_journals = [
     },
     {
         "user_id": 1,
-        "date": date(2025, 3, 30),
+        "date": today - timedelta(days=2),
         "subject": "Reflection on Goals",
         "entry": (
             "Spent some time revisiting my goals for the year.\n"
@@ -103,7 +103,7 @@ test_journals = [
     },
     {
         "user_id": 1,
-        "date": date(2025, 3, 31),
+        "date": today - timedelta(days=1),
         "subject": "Solo Adventure",
         "entry": (
             "Tried hiking alone for the first time. Peaceful but also spooky near the end.\n"
@@ -112,7 +112,7 @@ test_journals = [
     },
     {
         "user_id": 1,
-        "date": date(2025, 4, 1),
+        "date": today,
         "subject": "Tech Dive",
         "entry": (
             "Finally understood how useEffect cleanup works in React.\n"
