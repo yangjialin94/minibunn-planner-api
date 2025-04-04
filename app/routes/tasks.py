@@ -186,6 +186,8 @@ def update_task(
     elif "is_completed" in update_fields:
         new_status = update_data["is_completed"]
         task.is_completed = new_status
+
+        # Get all tasks for the same day (excluding the current task)
         same_day_tasks = (
             db.query(Task)
             .filter(Task.user_id == user_id, Task.date == task.date, Task.id != task.id)
@@ -194,31 +196,16 @@ def update_task(
         )
 
         if new_status:
-            # If the task is marked as completed, shift all other tasks down
+            # If marking as completed, move the task to the last position.
             for t in same_day_tasks:
                 if t.order > task.order:
                     t.order -= 1
             task.order = len(same_day_tasks) + 1
         else:
-            # If the task is marked as uncompleted, shift all other tasks up
-            # Find the first completed task on the same day
-            first_completed_order = None
+            # If marking as uncompleted, move the task to the first position.
             for t in same_day_tasks:
-                if t.is_completed:
-                    first_completed_order = t.order
-                    break
-
-            if first_completed_order is not None:
-                # Shift all tasks down to make space for the uncompleted task
-                new_order = first_completed_order
-                for t in same_day_tasks:
-                    if t.order >= new_order:
-                        t.order += 1
-            else:
-                # If no completed tasks exist, place the task at the end.
-                new_order = len(same_day_tasks) + 1
-
-            task.order = new_order
+                t.order += 1
+            task.order = 1
 
     db.commit()
     db.refresh(task)
