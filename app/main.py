@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import Base, engine, get_db
 from app.core.init_db import init_test_data
-from app.routes import journals, tasks
+from app.routes import journals, tasks, users
 from app.scheduler import start_scheduler
 
 
@@ -46,3 +46,4 @@ app.add_middleware(
 # Include routers
 app.include_router(journals.router, prefix="/journals", tags=["journals"])
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
+app.include_router(users.router, prefix="/users", tags=["users"])

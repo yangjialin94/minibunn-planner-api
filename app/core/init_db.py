@@ -13,12 +13,9 @@ def init_test_data(db: Session):
     if not existing:
         user = User(
             id=1,
-            firebase_auth_token="test_uid",
+            firebase_uid="test_uid",
             name="Test User",
             email="test@example.com",
-            created_date=date.today(),
-            subscription_status="free",
-            last_paid_date=None,
         )
         db.add(user)
         db.commit()
