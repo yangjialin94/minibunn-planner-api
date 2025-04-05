@@ -12,12 +12,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    firebase_auth_token = Column(String, unique=True, index=True)
-    name = Column(String)
-    email = Column(String, unique=True)
-    created_date = Column(Date)
-    subscription_status = Column(String)
-    last_paid_date = Column(Date)
+    firebase_uid = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, index=True, nullable=True)
+    email = Column(String, unique=True, index=True, nullable=False)
 
     tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
     journals = relationship(
