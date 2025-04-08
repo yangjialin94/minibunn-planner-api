@@ -5,6 +5,14 @@ source .venv/bin/activate
 univorn app.main:app --reload
 ```
 
+## Environment File
+
+```txt
+DATABASE_URL=postgresql://user:password@localhost:5432/db_name
+WEB_URL=http://localhost:3000
+ENV=dev
+```
+
 # Test
 
 - Reload initial data:
