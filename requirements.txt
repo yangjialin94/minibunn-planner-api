@@ -8,3 +8,4 @@ httpx
 apscheduler
 firebase_admin
 dotenv
+alembic
