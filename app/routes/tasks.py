@@ -202,7 +202,7 @@ def update_task(
                     t.order -= 1
             task.order = len(same_day_tasks) + 1
         else:
-            # If marking as uncompleted, move the task to the first position.
+            # If marking as incomplete, move the task to the first position.
             for t in same_day_tasks:
                 t.order += 1
             task.order = 1

@@ -1,15 +1,23 @@
 # Run
 
-```shell
+```bash
 source .venv/bin/activate
 univorn app.main:app --reload
 ```
 
 # Test
 
-```shell
-pytest -v
-```
+- Reload initial data:
+
+    ```bash
+    python3 -m app.scripts.init_test_data
+    ```
+
+- Run unit tests:
+
+    ```bash
+    pytest -v
+    ```
 
 # Standard DB Migration
 
