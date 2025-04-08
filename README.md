@@ -5,7 +5,7 @@ source .venv/bin/activate
 univorn app.main:app --reload
 ```
 
-## Environment File
+## Environment Variables
 
 ```txt
 DATABASE_URL=postgresql://user:password@localhost:5432/db_name
