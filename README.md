@@ -11,6 +11,41 @@ univorn app.main:app --reload
 pytest -v
 ```
 
+# Standard DB Migration
+
+1. Modify your SQLAlchemy models (`app/models/xxx`).
+2. Autogenerate a migration file
+
+    ```bash
+    alembic revision --autogenerate -m "Put comment here"
+    ```
+
+3. Apply the migration
+
+    ```bash
+    alembic upgrade head
+    ```
+
+# More Alembic scripts
+
+- View DB Status:
+
+    ```bash
+    alembic current
+    ```
+
+- See migration history:
+
+    ```bash
+    alembic history
+    ```
+
+- Downgrade if needed:
+
+    ```bash
+    alembic downgrade -1  # go back one migration
+    ```
+
 # File Structure
 
 ```
