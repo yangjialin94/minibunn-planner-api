@@ -3,9 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import ENV, WEB_URL
-from app.core.database import Base, engine, get_db
-from app.core.init_db import init_test_data
+from app.config import WEB_URL
+from app.core.database import Base
 from app.routes import journals, tasks, users
 from app.scheduler import start_scheduler
 

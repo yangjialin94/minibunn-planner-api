@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.deps.auth import get_user_id
 from app.models.journal import Journal
-from app.schemas.journal import JournalOut, JournalUpdate
+from app.schemas.journal import JournalCreate, JournalOut, JournalUpdate
 
 # Create a router
 router = APIRouter()
@@ -39,32 +39,32 @@ def get_or_create_journal(
     return new_journal
 
 
-# @router.post("/", response_model=JournalOut)
-# def create_journal(
-#     journal: JournalCreate,
-#     db: Session = Depends(get_db),
-#     user_id: int = Depends(get_user_id),
-# ):
-#     """
-#     Create a new journal for the current user.
-#     """
-#     # Check if journal already exists for this date
-#     existing = (
-#         db.query(Journal)
-#         .filter(Journal.user_id == user_id, Journal.date == journal.date)
-#         .first()
-#     )
-#     if existing:
-#         raise HTTPException(
-#             status_code=400, detail="Journal already exists for this date"
-#         )
+@router.post("/", response_model=JournalOut)
+def create_journal(
+    journal: JournalCreate,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_user_id),
+):
+    """
+    Create a new journal for the current user.
+    """
+    # Check if journal already exists for this date
+    existing = (
+        db.query(Journal)
+        .filter(Journal.user_id == user_id, Journal.date == journal.date)
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=400, detail="Journal already exists for this date"
+        )
 
-#     # Create the journal
-#     db_journal = Journal(**journal.model_dump(), user_id=user_id)
-#     db.add(db_journal)
-#     db.commit()
-#     db.refresh(db_journal)
-#     return db_journal
+    # Create the journal
+    db_journal = Journal(**journal.model_dump(), user_id=user_id)
+    db.add(db_journal)
+    db.commit()
+    db.refresh(db_journal)
+    return db_journal
 
 
 @router.patch("/{journal_id}", response_model=JournalOut)

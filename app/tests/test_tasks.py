@@ -280,9 +280,8 @@ def test_update_is_completed_to_incomplete_moves_before_completed(client):
     tasks = sorted(res.json(), key=lambda t: t["order"])
     ordered_titles = [t["title"] for t in tasks]
 
-    # Expected final order:
-    # Order 1: Task B, Order 2: Task A, Order 3: Task D, Order 4: Task C.
-    expected_order = ["Task B", "Task A", "Task D", "Task C"]
+    # Since Task D becomes incomplete, it moves to the top.
+    expected_order = ["Task D", "Task B", "Task A", "Task C"]
     assert (
         ordered_titles == expected_order
     ), f"Expected order {expected_order}, got {ordered_titles}"

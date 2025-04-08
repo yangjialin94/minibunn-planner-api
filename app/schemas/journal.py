@@ -3,14 +3,15 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
-# class JournalCreate(BaseModel):
-#     """
-#     Journal Create Pydantic Schema (for POST requests)
-#     """
 
-#     date: date
-#     subject: Optional[str] = ""
-#     entry: Optional[str] = ""
+class JournalCreate(BaseModel):
+    """
+    Journal Create Pydantic Schema (for POST requests)
+    """
+
+    date: date
+    subject: Optional[str] = ""
+    entry: Optional[str] = ""
 
 
 class JournalUpdate(BaseModel):
