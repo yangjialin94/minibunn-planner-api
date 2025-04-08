@@ -31,10 +31,6 @@ file::memory:
 *.sqlite3
 *.db
 
-# Migrations (optional, comment out if using Alembic)
-migrations/
-alembic/
-
 # Logs
 *.log
 
