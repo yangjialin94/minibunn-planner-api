@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import ENV, WEB_URL
 from app.core.database import Base, engine, get_db
 from app.core.init_db import init_test_data
 from app.routes import journals, tasks, users
@@ -13,17 +14,6 @@ from app.scheduler import start_scheduler
 async def lifespan(app: FastAPI):
     # Load models to register them with Base
     from app.models import journal, task, user
-
-    # Recreate database schema
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-
-    # Load test data
-    db = next(get_db())
-    try:
-        init_test_data(db)
-    finally:
-        db.close()
 
     # Initialize the scheduler
     start_scheduler()
@@ -37,7 +27,7 @@ app = FastAPI(lifespan=lifespan)
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[WEB_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
