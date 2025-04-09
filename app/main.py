@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import WEB_URL
 from app.core.database import Base
-from app.routes import journals, tasks, users
+from app.routes import journals, notes, tasks, users
 from app.scheduler import start_scheduler
 
 
@@ -33,6 +33,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(journals.router, prefix="/journals", tags=["journals"])
-app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
+app.include_router(journals.router, prefix="/journals", tags=["journals"])
+app.include_router(notes.router, prefix="/notes", tags=["notes"])
