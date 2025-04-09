@@ -1,3 +1,5 @@
+import os
+
 import firebase_admin
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -16,6 +18,10 @@ def get_user_id(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
+    # Return dev user ID if in development mode
+    if os.getenv("ENV") == "dev":
+        return 2
+
     # Verify the token using Firebase Admin SDK
     token = credentials.credentials
 
@@ -30,26 +36,29 @@ def get_user_id(
     name = decoded_token.get("name")
     email = decoded_token.get("email")
 
-    print(f"firebase_uid: {firebase_uid}")
-    print(f"name: {name}")
-    print(f"email: {email}")
-
-    # Check if the user exists in the database
+    # Check if the user exists by Firebase UID
     user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
-
     if user:
         return user.id
-    else:
-        # If the user does not exist, create a new user
-        new_user = User(
-            firebase_uid=firebase_uid,
-            name=name,
-            email=decoded_token.get("email"),
-        )
-        db.add(new_user)
+
+    # Check if the user exists by email
+    user_by_email = db.query(User).filter(User.email == email).first()
+    if user_by_email:
+        # Optionally: update UID for consistency
+        user_by_email.firebase_uid = firebase_uid
         db.commit()
+        db.refresh(user_by_email)
+        return user_by_email.id
 
-        print(f"New user created: {new_user}")
+    # If the user does not exist, create a new user
+    new_user = User(
+        firebase_uid=firebase_uid,
+        name=name,
+        email=decoded_token.get("email"),
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
 
-        db.refresh(new_user)
-        return new_user.id
+    print(f"New user created: {new_user}")
+    return new_user.id

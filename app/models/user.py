@@ -20,3 +20,4 @@ class User(Base):
     journals = relationship(
         "Journal", back_populates="user", cascade="all, delete-orphan"
     )
+    notes = relationship("Note", back_populates="user", cascade="all, delete-orphan")
