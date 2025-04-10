@@ -36,10 +36,6 @@ def create_note(
     """
     Create a new note for the current user.
     """
-    # Add default detail if not provided
-    if not note.detail:
-        note.detail = "New note"
-
     # Create the note
     max_order = (
         db.query(func.coalesce(func.max(Note.order), 0))
