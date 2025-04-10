@@ -45,10 +45,6 @@ def create_task(
     repeatable_days = task.repeatable_days or 1
     repeatable_id = str(uuid4()) if repeatable_days > 1 else None
 
-    # Add default title if not provided
-    if not task.title:
-        task.title = "New Task"
-
     # Create the task(s)
     created_tasks = []
     for i in range(repeatable_days):
