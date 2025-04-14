@@ -10,7 +10,7 @@ class TaskCreate(BaseModel):
     """
 
     date: date
-    title: str
+    title: Optional[str] = ""
     note: Optional[str] = ""
     is_completed: bool = False
     repeatable_id: Optional[str] = None
