@@ -92,9 +92,9 @@ def test_create_task_inserts_at_beginning(client):
 
 def test_update_repeatable_title_and_split_chain(client):
     """
-    Tests updating a repeatable task's title.
-    Should update current + future tasks with new repeatable_id.
-    Past tasks should remain unchanged.
+    Tests updating a repeatable task's title on the first task in the chain.
+    The current task and all future tasks keep their original repeatable_id.
+    The repeatable_days remains unchanged.
     """
     # Create a repeatable task chain for 3 days
     today = date.today().isoformat()
@@ -107,33 +107,34 @@ def test_update_repeatable_title_and_split_chain(client):
             "repeatable_days": 3,
         },
     )
+    assert res.status_code == 200
     task = res.json()
-    old_repeatable_id = task["repeatable_id"]
+    original_repeatable_id = task["repeatable_id"]
     task_id = task["id"]
 
-    # Update the title of the first task
+    # Update the title of the first task.
     patch = client.patch(f"/tasks/{task_id}", json={"title": "Updated"})
     assert patch.status_code == 200
     updated_task = patch.json()
     assert updated_task["title"] == "Updated"
 
-    # Check that the repeatable_id has changed
+    # The updated task (and consequently the entire chain) will keep the original repeatable_id.
     new_repeatable_id = updated_task["repeatable_id"]
-    assert new_repeatable_id is not None
-    assert new_repeatable_id != old_repeatable_id
+    assert new_repeatable_id == original_repeatable_id
+
+    # repeatable_days remains unchanged (should still be 3)
     assert updated_task["repeatable_days"] == 3
 
-    # Verify that the first task has the new repeatable_id
+    # Query the chain again.
     end = (date.today() + timedelta(days=2)).isoformat()
     query = client.get(f"/tasks/?start={today}&end={end}")
-    chain_tasks = query.json()
-    for t in chain_tasks:
-        if t["title"] == "Updated":
-            assert t["repeatable_id"] == new_repeatable_id
-            assert t["repeatable_days"] == 3
+    chain_tasks = [t for t in query.json() if t["title"] in ["Updated", "Old"]]
+    assert len(chain_tasks) == 3
 
-    # Ensure that the past tasks are unchanged
-    assert len([t for t in chain_tasks if t["title"] == "Updated"]) == 3
+    # All tasks in the chain should have the same original repeatable_id and repeatable_days = 3.
+    for t in chain_tasks:
+        assert t["repeatable_id"] == original_repeatable_id
+        assert t["repeatable_days"] == 3
 
 
 def test_patch_multiple_update_types_fails(client):
@@ -349,3 +350,119 @@ def test_completion_status_route(client):
         assert result["date"] == exp["date"]
         assert result["total"] == exp["total"]
         assert result["completed"] == exp["completed"]
+
+
+def test_update_repeatable_second_item_and_split_chain(client):
+    """
+    Tests updating the second task in a repeatable chain.
+    """
+    # Create a chain of 5 repeatable tasks.
+    today = date.today()
+    today_str = today.isoformat()
+    res = client.post(
+        "/tasks/",
+        json={
+            "date": today_str,
+            "title": "Chain Task",
+            "note": "Repeat this",
+            "repeatable_days": 5,
+        },
+    )
+    assert res.status_code == 200
+    first_task = res.json()
+    original_repeatable_id = first_task["repeatable_id"]
+    assert original_repeatable_id is not None
+
+    # Query tasks to ensure all 5 were created.
+    end_date_str = (today + timedelta(days=4)).isoformat()
+    res_chain = client.get(f"/tasks/?start={today_str}&end={end_date_str}")
+    chain_tasks = [t for t in res_chain.json() if t["title"] == "Chain Task"]
+    assert len(chain_tasks) == 5
+
+    # Identify the second task (by date ordering).
+    sorted_chain = sorted(chain_tasks, key=lambda t: t["date"])
+    second_task = sorted_chain[1]
+    second_task_id = second_task["id"]
+
+    # Update the title of the second task.
+    patch_res = client.patch(
+        f"/tasks/{second_task_id}", json={"title": "Updated Chain Task"}
+    )
+    assert patch_res.status_code == 200
+    updated_second = patch_res.json()
+    assert updated_second["repeatable_id"] == original_repeatable_id
+    assert updated_second["repeatable_days"] == 4
+
+    # Query the chain again.
+    res_chain = client.get(f"/tasks/?start={today_str}&end={end_date_str}")
+    chain_tasks = sorted(
+        [t for t in res_chain.json() if "Chain Task" in t["title"]],
+        key=lambda t: t["date"],
+    )
+    assert len(chain_tasks) == 5
+
+    # The first task (earliest date) should no longer be repeatable.
+    first_updated = chain_tasks[0]
+    assert first_updated["repeatable_id"] is None
+    assert first_updated["repeatable_days"] is None
+
+    # The rest of the tasks (positions 2-5) should have the new repeatable id and repeatable_days = 4.
+    for t in chain_tasks[1:]:
+        assert t["repeatable_id"] == original_repeatable_id
+        assert t["repeatable_days"] == 4
+
+    # Also check that the update was applied: the title of the updated second task should be updated.
+    updated_titles = [t["title"] for t in chain_tasks]
+    assert "Updated Chain Task" in updated_titles
+
+
+def test_delete_repeatable_middle_task_splits_chain(client):
+    """
+    Tests that deleting a middle repeatable task splits the chain.
+    All tasks with a date >= that of the deleted task are removed.
+    The only previous task (the first one) is removed from the chain.
+    """
+    # Create a chain of 4 repeatable tasks.
+    today = date.today()
+    today_str = today.isoformat()
+    res = client.post(
+        "/tasks/",
+        json={
+            "date": today_str,
+            "title": "Chain Task",
+            "note": "Repeat this",
+            "repeatable_days": 4,
+        },
+    )
+    assert res.status_code == 200
+    first_task = res.json()
+    original_repeatable_id = first_task["repeatable_id"]
+    assert original_repeatable_id is not None
+
+    # Query tasks to ensure all 4 were created.
+    end_date_str = (today + timedelta(days=3)).isoformat()
+    res_chain = client.get(f"/tasks/?start={today_str}&end={end_date_str}")
+    chain_tasks = [t for t in res_chain.json() if t["title"] == "Chain Task"]
+    assert len(chain_tasks) == 4
+
+    # Identify the second task by sorting the chain by date.
+    sorted_chain = sorted(chain_tasks, key=lambda t: t["date"])
+    second_task = sorted_chain[1]
+    second_task_id = second_task["id"]
+
+    # Delete the second task.
+    delete_res = client.delete(f"/tasks/{second_task_id}")
+    assert delete_res.status_code == 200
+
+    # Query tasks again for the same date range.
+    res_chain_after = client.get(f"/tasks/?start={today_str}&end={end_date_str}")
+    remaining_tasks = [t for t in res_chain_after.json() if t["title"] == "Chain Task"]
+
+    # Expect that tasks with date >= second task's date are deleted,
+    # so only one task (the first task) remains.
+    assert len(remaining_tasks) == 1
+
+    # The remaining task (first in the chain) should no longer be repeatable.
+    remaining = remaining_tasks[0]
+    assert remaining["repeatable_id"] is None
+    assert remaining["repeatable_days"] is None
