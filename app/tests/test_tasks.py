@@ -466,3 +466,58 @@ def test_delete_repeatable_middle_task_splits_chain(client):
     remaining = remaining_tasks[0]
     assert remaining["repeatable_id"] is None
     assert remaining["repeatable_days"] is None
+
+
+def test_update_task_date_and_reorder(client):
+    """
+    Tests updating a task's date.
+    The task should move to the new date and be inserted at order 1,
+    pushing existing tasks on the new date down by 1.
+    """
+    today = date.today()
+    today_str = today.isoformat()
+    tomorrow = today + timedelta(days=1)
+    tomorrow_str = tomorrow.isoformat()
+
+    # Create two tasks on today
+    res1 = client.post(
+        "/tasks/", json={"date": today_str, "title": "Task A", "note": ""}
+    )
+    res2 = client.post(
+        "/tasks/", json={"date": today_str, "title": "Task B", "note": ""}
+    )
+    assert res1.status_code == 200 and res2.status_code == 200
+    task_b_id = res2.json()["id"]
+
+    # Create one task on tomorrow
+    res3 = client.post(
+        "/tasks/", json={"date": tomorrow_str, "title": "Task C", "note": ""}
+    )
+    assert res3.status_code == 200
+
+    # Patch task B's date to tomorrow
+    patch = client.patch(f"/tasks/{task_b_id}", json={"date": tomorrow_str})
+    print("PATCH error details:", patch.json())
+    assert patch.status_code == 200
+    moved = patch.json()
+    assert moved["date"] == tomorrow_str
+    assert moved["order"] == 1
+
+    # Fetch tasks on today and tomorrow
+    today_tasks = client.get(f"/tasks/?start={today_str}&end={today_str}").json()
+    tomorrow_tasks = client.get(
+        f"/tasks/?start={tomorrow_str}&end={tomorrow_str}"
+    ).json()
+
+    # Verify today's tasks are reordered correctly
+    assert len(today_tasks) == 1
+    assert today_tasks[0]["title"] == "Task A"
+    assert today_tasks[0]["order"] == 1
+
+    # Verify tomorrow's tasks are in correct order
+    ordered_tomorrow = sorted(tomorrow_tasks, key=lambda t: t["order"])
+    expected_titles = ["Task B", "Task C"]
+    actual_titles = [t["title"] for t in ordered_tomorrow]
+    assert (
+        actual_titles == expected_titles
+    ), f"Expected {expected_titles}, got {actual_titles}"

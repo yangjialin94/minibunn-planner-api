@@ -96,6 +96,7 @@ def update_task(
     # Enforce only one type of update at a time
     update_fields = set(update_data.keys())
     groups = {
+        "date": {"date"},
         "order": {"order"},
         "text": {"title", "note"},
         "completed": {"is_completed"},
@@ -108,8 +109,44 @@ def update_task(
             detail="Only one type of update is allowed per request (order, title/note, or is_completed).",
         )
 
+    # Handle date update
+    if "date" in update_fields:
+        new_date = update_data["date"]
+        old_date = task.date
+
+        # Check if the new date is valid
+        if new_date != old_date:
+            task.date = new_date
+
+            # Reorder tasks from the old date
+            old_day_tasks = (
+                db.query(Task)
+                .filter(
+                    Task.user_id == user_id, Task.date == old_date, Task.id != task.id
+                )
+                .order_by(Task.order)
+                .all()
+            )
+            for idx, t in enumerate(old_day_tasks, start=1):
+                t.order = idx
+
+            # Shift other tasks on the new date
+            new_day_tasks = (
+                db.query(Task)
+                .filter(
+                    Task.user_id == user_id, Task.date == new_date, Task.id != task.id
+                )
+                .order_by(Task.order.desc())
+                .all()
+            )
+            for t in new_day_tasks:
+                t.order += 1
+
+            # Put the moved task at the top
+            task.order = 1
+
     # Handle order update
-    if "order" in update_fields:
+    elif "order" in update_fields:
         new_order = update_data.get("order")
         if new_order < 1:
             raise HTTPException(status_code=400, detail="Order must be 1 or greater")

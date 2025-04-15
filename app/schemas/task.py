@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as date_
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -9,7 +9,7 @@ class TaskCreate(BaseModel):
     Task Create Pydantic Schema (for POST requests)
     """
 
-    date: date
+    date: date_
     title: Optional[str] = ""
     note: Optional[str] = ""
     is_completed: bool = False
@@ -22,6 +22,7 @@ class TaskUpdate(BaseModel):
     Task Update Pydantic Schema (for PUT requests)
     """
 
+    date: Optional[date_] = None
     title: Optional[str] = None
     note: Optional[str] = None
     is_completed: Optional[bool] = None
@@ -34,7 +35,7 @@ class TaskOut(BaseModel):
     """
 
     id: int
-    date: date
+    date: date_
     title: Optional[str]
     note: Optional[str]
     is_completed: bool
@@ -50,7 +51,7 @@ class CompletionOut(BaseModel):
     Completion Out Pydantic Schema (response to client)
     """
 
-    date: date
+    date: date_
     total: int
     completed: int
 
