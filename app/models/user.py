@@ -1,4 +1,6 @@
-from sqlalchemy import Boolean, Column, Date, Integer, String
+from datetime import datetime
+
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -15,6 +17,14 @@ class User(Base):
     firebase_uid = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, index=True, nullable=True)
     email = Column(String, unique=True, index=True, nullable=False)
+
+    # Stripe / subscription related fields
+    stripe_customer_id = Column(String, nullable=True)
+    stripe_subscription_id = Column(String, nullable=True)
+    subscription_status = Column(
+        String, nullable=True
+    )  # (e.g., "active", "canceled", "past_due", etc.)
+    is_subscribed = Column(Boolean, default=False)
 
     tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
     journals = relationship(

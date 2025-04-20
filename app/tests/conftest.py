@@ -4,8 +4,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base, get_db
-from app.deps.auth import get_user_id
+from app.deps.auth import get_subscribed_user, get_user
 from app.main import app
+from app.models.user import User
 
 # Use an in-memory SQLite database for testing
 TEST_DATABASE_URL = "sqlite:///file::memory:?cache=shared"
@@ -29,12 +30,29 @@ def override_get_db():
         db.close()
 
 
-def override_get_user_id():
-    return 1  # consistent test user
+def override_get_user():
+    return User(
+        id=1,
+        firebase_uid="test-firebase-uid",
+        name="Test User",
+        email="test@example.com",
+        is_subscribed=True,
+    )
+
+
+def override_get_subscribed_user():
+    return User(
+        id=1,
+        firebase_uid="test-firebase-uid",
+        name="Test User",
+        email="test@example.com",
+        is_subscribed=True,
+    )
 
 
 app.dependency_overrides[get_db] = override_get_db
-app.dependency_overrides[get_user_id] = override_get_user_id
+app.dependency_overrides[get_user] = override_get_user
+app.dependency_overrides[get_subscribed_user] = override_get_subscribed_user
 
 
 # Create tables before running tests

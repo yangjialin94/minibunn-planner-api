@@ -3,9 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import WEB_URL
+from app.core.config import ALLOW_ORIGINS, WEB_URL
 from app.core.database import Base
-from app.routes import journals, notes, tasks, users
+from app.routes import journals, notes, stripe, tasks, users
 from app.scheduler import start_scheduler
 
 
@@ -26,7 +26,7 @@ app = FastAPI(lifespan=lifespan)
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[WEB_URL],
+    allow_origins=ALLOW_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,3 +37,4 @@ app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 app.include_router(journals.router, prefix="/journals", tags=["journals"])
 app.include_router(notes.router, prefix="/notes", tags=["notes"])
+app.include_router(stripe.router, prefix="/api/stripe", tags=["stripe"])

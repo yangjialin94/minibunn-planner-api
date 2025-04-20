@@ -7,8 +7,9 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.deps.auth import get_user_id
+from app.deps.auth import get_subscribed_user
 from app.models.task import Task
+from app.models.user import User
 from app.schemas.task import CompletionOut, TaskCreate, TaskOut, TaskUpdate
 
 # Create a router
@@ -20,11 +21,12 @@ def get_tasks(
     start: Optional[date] = None,
     end: Optional[date] = None,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(get_subscribed_user),
 ):
     """
     Get tasks for the current user between the start and end dates.
     """
+    user_id = user.id
     query = db.query(Task).filter(Task.user_id == user_id)
     if start and end:
         query = query.filter(Task.date.between(start, end))
@@ -35,12 +37,14 @@ def get_tasks(
 def create_task(
     task: TaskCreate,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(get_subscribed_user),
 ):
     """
     Create a new task for the current user.
     If repeatable_days is provided, create multiple tasks with the same repeatable_id.
     """
+    user_id = user.id
+
     # Generate repeatable_id if task is repeatable
     repeatable_days = task.repeatable_days or 1
     repeatable_id = str(uuid4()) if repeatable_days > 1 else None
@@ -81,12 +85,13 @@ def update_task(
     task_id: int,
     updates: TaskUpdate,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(get_subscribed_user),
 ):
     """
     Update a task for the current user.
     If the task is repeatable, update all tasks with the same repeatable_id.
     """
+    user_id = user.id
     task = db.query(Task).filter(Task.id == task_id, Task.user_id == user_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -276,12 +281,13 @@ def update_task(
 def delete_task(
     task_id: int,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(get_subscribed_user),
 ):
     """
     Delete a task for the current user.
     If the task is repeatable, delete all tasks with the same repeatable_id.
     """
+    user_id = user.id
     task = db.query(Task).filter(Task.id == task_id, Task.user_id == user_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -352,8 +358,10 @@ def get_completion_status(
     start: date,
     end: date,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(get_subscribed_user),
 ):
+    user_id = user.id
+
     # Create an expression to sum up completed tasks (1 if completed, else 0)
     completed_sum = func.sum(case((Task.is_completed == True, 1), else_=0)).label(
         "completed"

@@ -7,8 +7,9 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.deps.auth import get_user_id
+from app.deps.auth import get_subscribed_user
 from app.models.note import Note
+from app.models.user import User
 from app.schemas.note import NoteCreate, NoteOut, NoteUpdate
 
 # Create a router
@@ -18,11 +19,12 @@ router = APIRouter()
 @router.get("/", response_model=List[NoteOut])
 def get_notes(
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(get_subscribed_user),
 ):
     """
     Get notes for the current user.
     """
+    user_id = user.id
     query = db.query(Note).filter(Note.user_id == user_id)
     return query.order_by(Note.order).all()
 
@@ -31,11 +33,13 @@ def get_notes(
 def create_note(
     note: NoteCreate,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(get_subscribed_user),
 ):
     """
     Create a new note for the current user.
     """
+    user_id = user.id
+
     # Create the note
     max_order = (
         db.query(func.coalesce(func.max(Note.order), 0))
@@ -61,11 +65,12 @@ def update_note(
     note_id: int,
     updates: NoteUpdate,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(get_subscribed_user),
 ):
     """
     Update a note for the current user.
     """
+    user_id = user.id
     note = db.query(Note).filter(Note.id == note_id, Note.user_id == user_id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
@@ -130,11 +135,12 @@ def update_note(
 def delete_note(
     note_id: int,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(get_subscribed_user),
 ):
     """
     Delete a note for the current user.
     """
+    user_id = user.id
     note = db.query(Note).filter(Note.id == note_id, Note.user_id == user_id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
