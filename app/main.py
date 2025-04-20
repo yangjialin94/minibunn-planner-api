@@ -40,9 +40,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-print("🚀 ENV:", ENV)
-print("✅ Allowing origins:", allow_origins)
-
 # Include routers
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])

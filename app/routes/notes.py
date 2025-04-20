@@ -40,17 +40,15 @@ def create_note(
     """
     user_id = user.id
 
-    # Create the note
-    max_order = (
-        db.query(func.coalesce(func.max(Note.order), 0))
-        .filter(Note.user_id == user_id)
-        .scalar()
-    )
+    # Shift existing notes' order by 1
+    db.query(Note).filter(Note.user_id == user_id).update({Note.order: Note.order + 1})
+
+    # Create the new note
     new_note = Note(
         user_id=user_id,
         date=date.today(),
         detail=note.detail,
-        order=max_order + 1,
+        order=1,
     )
 
     db.add(new_note)
