@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from firebase_admin import auth
 from sqlalchemy.orm import Session
 
-from app.core.config import TRIAL_DAYS, WEB_URL
+from app.core.config import TRIAL_DAYS
 from app.core.database import get_db
 from app.deps.auth import get_subscribed_user, get_user
 from app.models.user import User
