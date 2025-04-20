@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import ALLOW_ORIGINS, WEB_URL
+from app.core.config import ALLOW_ORIGINS, ENV, WEB_URL
 from app.core.database import Base
 from app.routes import journals, notes, stripe, tasks, users
 from app.scheduler import start_scheduler
@@ -24,13 +24,24 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 # Add CORS middleware
+if ENV == "dev":
+    allow_origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+else:
+    allow_origins = [WEB_URL]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOW_ORIGINS,
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+print("🚀 ENV:", ENV)
+print("✅ Allowing origins:", allow_origins)
 
 # Include routers
 app.include_router(users.router, prefix="/users", tags=["users"])
