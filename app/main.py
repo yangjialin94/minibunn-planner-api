@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import ALLOW_ORIGINS, ENV, WEB_URL
+from app.core.config import ENV, WEB_URL
 from app.core.database import Base
 from app.routes import journals, notes, stripe, tasks, users
 from app.scheduler import start_scheduler
