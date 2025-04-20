@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.deps.auth import get_user_id
+from app.deps.auth import get_subscribed_user
 from app.models.journal import Journal
+from app.models.user import User
 from app.schemas.journal import JournalCreate, JournalOut, JournalUpdate
 
 # Create a router
@@ -16,13 +17,14 @@ router = APIRouter()
 def get_or_create_journal(
     date: date,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(get_subscribed_user),
 ):
     """
     Get the journal for the given date.
     If it doesn't exist, create a new one and return it.
     """
     # Get the journal for the specified date
+    user_id = user.id
     journal = (
         db.query(Journal)
         .filter(Journal.user_id == user_id, Journal.date == date)
@@ -43,12 +45,13 @@ def get_or_create_journal(
 def create_journal(
     journal: JournalCreate,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(get_subscribed_user),
 ):
     """
     Create a new journal for the current user.
     """
     # Check if journal already exists for this date
+    user_id = user.id
     existing = (
         db.query(Journal)
         .filter(Journal.user_id == user_id, Journal.date == journal.date)
@@ -72,12 +75,13 @@ def update_journal(
     journal_id: int,
     updates: JournalUpdate,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(get_subscribed_user),
 ):
     """
     Update a journal for the current user.
     """
     # Check if journal exists
+    user_id = user.id
     journal = (
         db.query(Journal)
         .filter(Journal.id == journal_id, Journal.user_id == user_id)
@@ -90,6 +94,34 @@ def update_journal(
     update_data = updates.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(journal, key, value)
+
+    db.commit()
+    db.refresh(journal)
+    return journal
+
+
+@router.patch("/{journal_id}", response_model=JournalOut)
+def clear_journal(
+    journal_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_subscribed_user),
+):
+    """
+    Update a journal for the current user.
+    """
+    # Check if journal exists
+    user_id = user.id
+    journal = (
+        db.query(Journal)
+        .filter(Journal.id == journal_id, Journal.user_id == user_id)
+        .first()
+    )
+    if not journal:
+        raise HTTPException(status_code=404, detail="Journal not found")
+
+    # Update the journal
+    journal.subject = ""
+    journal.entry = ""
 
     db.commit()
     db.refresh(journal)

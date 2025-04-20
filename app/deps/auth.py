@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 import firebase_admin
 from fastapi import Depends, HTTPException, status
@@ -14,14 +15,13 @@ from app.services.firebase_admin import firebase_auth
 security = HTTPBearer()
 
 
-def get_user_id(
+def get_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
-):
-    # Return dev user ID if in development mode
-    if os.getenv("ENV") == "dev":
-        return 2
-
+) -> User:
+    """
+    Retrieves the user from the Firebase token.
+    """
     # Verify the token using Firebase Admin SDK
     token = credentials.credentials
 
@@ -39,26 +39,47 @@ def get_user_id(
     # Check if the user exists by Firebase UID
     user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
     if user:
-        return user.id
+        return user
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
-    # Check if the user exists by email
-    user_by_email = db.query(User).filter(User.email == email).first()
-    if user_by_email:
-        # Optionally: update UID for consistency
-        user_by_email.firebase_uid = firebase_uid
-        db.commit()
-        db.refresh(user_by_email)
-        return user_by_email.id
 
-    # If the user does not exist, create a new user
-    new_user = User(
-        firebase_uid=firebase_uid,
-        name=name,
-        email=decoded_token.get("email"),
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+def get_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """
+    Retrieves the token from the Firebase token.
+    """
+    # Verify the token using Firebase Admin SDK
+    token = credentials.credentials
 
-    print(f"New user created: {new_user}")
-    return new_user.id
+    try:
+        decoded_token = firebase_auth.verify_id_token(token)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
+
+    return decoded_token
+
+
+def get_subscribed_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    """
+    Retrieves the user from the Firebase token and checks if they are subscribed.
+    """
+    # Verify the token using Firebase Admin SDK
+    user = get_user(credentials, db)
+
+    # Check if the user is subscribed
+    if user.is_subscribed:
+        return user
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="User is not subscribed",
+        )

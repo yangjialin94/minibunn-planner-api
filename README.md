@@ -1,4 +1,6 @@
-# Run
+# Documentation
+
+## Run
 
 ```bash
 source .venv/bin/activate
@@ -8,12 +10,18 @@ univorn app.main:app --reload
 ## Environment Variables
 
 ```txt
-DATABASE_URL=postgresql://user:password@localhost:5432/db_name
-WEB_URL=http://localhost:3000
 ENV=dev
+
+DATABASE_URL=postgresql://user:password@localhost:5432/MinimalPlanner
+WEB_URL=http://localhost:3000
+
+STRIPE_SECRET_KEY=sk_test_51RECIKRSBgEYMFnWnnje2seL2FbIvmbW2nanuTT5tGvLZkQQRLJaL8s9WrJAvF8rQ5y7xWH8JXI2Jp5CBbIuQQSd00y7oQq8Fb
+STRIPE_WEBHOOK_SECRET=whsec_128ff2317901455dad859951c50fe03034e8fc08c7f8b81368e4bd185de7fba0
+
+TRIAL_DAYS=1
 ```
 
-# Test
+## Test
 
 - Reload initial data:
 
@@ -27,7 +35,13 @@ ENV=dev
     pytest -v
     ```
 
-# Standard DB Migration
+- Test Stripe webhooks:
+
+    ```bash
+    stripe listen --forward-to localhost:8000/api/stripe/webhook
+    ```
+
+## Standard DB Migration
 
 1. Modify your SQLAlchemy models (`app/models/xxx`).
 2. Autogenerate a migration file
@@ -42,7 +56,7 @@ ENV=dev
     alembic upgrade head
     ```
 
-# More Alembic scripts
+## More Alembic scripts
 
 - View DB Status:
 
@@ -62,12 +76,12 @@ ENV=dev
     alembic downgrade -1  # go back one migration
     ```
 
-# File Structure
+## File Structure
 
-```
+```text
 app/
 ├── api/
-│   ├── deps/                   # Shared dependencies (e.g., get_user_id)
+│   ├── deps/                   # Shared dependencies (e.g., get_user)
 │   │   └── auth.py
 │   ├── routes/                 # Route definitions
 │   │   ├── __init__.py

@@ -9,3 +9,4 @@ apscheduler
 firebase_admin
 dotenv
 alembic
+stripe
