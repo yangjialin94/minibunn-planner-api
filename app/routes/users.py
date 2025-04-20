@@ -62,6 +62,7 @@ def get_current_user(
     # Get the user information from the decoded token
     firebase_uid = decoded_token.get("uid")
     email = decoded_token.get("email")
+    name = decoded_token.get("name")
 
     # Check if the user exists by Firebase UID
     user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
