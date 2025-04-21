@@ -41,43 +41,29 @@ def create_task(
 ):
     """
     Create a new task for the current user.
-    If repeatable_days is provided, create multiple tasks with the same repeatable_id.
     """
     user_id = user.id
 
-    # Generate repeatable_id if task is repeatable
-    repeatable_days = task.repeatable_days or 1
-    repeatable_id = str(uuid4()) if repeatable_days > 1 else None
+    # Shift existing tasks' order by 1
+    db.query(Task).filter(Task.user_id == user_id, Task.date == task.date).update(
+        {Task.order: Task.order + 1}
+    )
 
-    # Create the task(s)
-    created_tasks = []
-    for i in range(repeatable_days):
-        task_date = task.date + timedelta(days=i)
+    # Create the new task
+    new_task = Task(
+        user_id=user_id,
+        date=task.date,
+        title=task.title,
+        note=task.note,
+        is_completed=task.is_completed,
+        order=1,
+    )
 
-        # Shift existing tasks' order by 1
-        db.query(Task).filter(Task.user_id == user_id, Task.date == task_date).update(
-            {Task.order: Task.order + 1}
-        )
-
-        new_task = Task(
-            user_id=user_id,
-            date=task_date,
-            title=task.title,
-            note=task.note,
-            is_completed=task.is_completed,
-            order=1,
-            repeatable_id=repeatable_id,
-            repeatable_days=repeatable_days if repeatable_id else None,
-        )
-
-        db.add(new_task)
-        created_tasks.append(new_task)
-
+    db.add(new_task)
     db.commit()
+    db.refresh(new_task)
 
-    # Return the first task created
-    db.refresh(created_tasks[0])
-    return created_tasks[0]
+    return new_task
 
 
 @router.patch("/{task_id}", response_model=TaskOut)
@@ -89,7 +75,6 @@ def update_task(
 ):
     """
     Update a task for the current user.
-    If the task is repeatable, update all tasks with the same repeatable_id.
     """
     user_id = user.id
     task = db.query(Task).filter(Task.id == task_id, Task.user_id == user_id).first()
@@ -183,69 +168,8 @@ def update_task(
     # Handle title/note update
     elif {"title", "note"} & update_fields:
         update_title_or_note = any(k in update_data for k in ["title", "note"])
-
-        # Check if the task is repeatable
-        if task.repeatable_id and update_title_or_note:
-            old_repeatable_id = task.repeatable_id
-
-            # Query for all previous tasks with the same repeatable_id
-            previous_tasks = (
-                db.query(Task)
-                .filter(
-                    Task.user_id == user_id,
-                    Task.repeatable_id == old_repeatable_id,
-                    Task.date < task.date,
-                )
-                .order_by(Task.date.asc())
-                .all()
-            )
-
-            # Query for all future (including the current one) tasks with the same repeatable_id
-            future_tasks = (
-                db.query(Task)
-                .filter(
-                    Task.user_id == user_id,
-                    Task.repeatable_id == old_repeatable_id,
-                    Task.date >= task.date,
-                )
-                .order_by(Task.date.asc())
-                .all()
-            )
-
-            new_repeatable_days = len(future_tasks)
-
-            # If only one task remains
-            if new_repeatable_days == 1:
-                for key, value in update_data.items():
-                    setattr(task, key, value)
-                task.repeatable_id = None
-                task.repeatable_days = None
-            else:
-                # Generate a new repeatable_id
-                new_repeatable_id = str(uuid4())
-
-                # Update future tasks (including the current one)
-                for future_task in future_tasks:
-                    if "title" in update_data:
-                        future_task.title = update_data["title"]
-                    if "note" in update_data:
-                        future_task.note = update_data["note"]
-                    future_task.repeatable_days = new_repeatable_days
-
-                    # Set the new repeatable_id for future tasks if needed
-                    # If has one previous task, then it would be removed from the repeatable group below
-                    # If there is no previous task, then there's no need to set a new repeatable_id
-                    if len(previous_tasks) > 1:
-                        future_task.repeatable_id = new_repeatable_id
-
-            # If only one previous task exists, remove the repeatable_id
-            if len(previous_tasks) == 1:
-                previous_tasks[0].repeatable_id = None
-                previous_tasks[0].repeatable_days = None
-        else:
-            # Update the current task
-            for key, value in update_data.items():
-                setattr(task, key, value)
+        for key, value in update_data.items():
+            setattr(task, key, value)
 
     # Handle is_completed update
     elif "is_completed" in update_fields:
@@ -285,7 +209,6 @@ def delete_task(
 ):
     """
     Delete a task for the current user.
-    If the task is repeatable, delete all tasks with the same repeatable_id.
     """
     user_id = user.id
     task = db.query(Task).filter(Task.id == task_id, Task.user_id == user_id).first()
@@ -294,46 +217,9 @@ def delete_task(
 
     affected_dates = []
 
-    # Check if the task is repeatable
-    if task.repeatable_id:
-        # Query for all tasks to delete
-        tasks_to_delete = (
-            db.query(Task)
-            .filter(
-                Task.user_id == user_id,
-                Task.repeatable_id == task.repeatable_id,
-                Task.date >= task.date,
-            )
-            .all()
-        )
-
-        # Query for all previous tasks in the chain (with date < target task's date)
-        previous_tasks = (
-            db.query(Task)
-            .filter(
-                Task.user_id == user_id,
-                Task.repeatable_id == task.repeatable_id,
-                Task.date < task.date,
-            )
-            .order_by(Task.date.asc())
-            .all()
-        )
-
-        affected_dates = list(set(t.date for t in tasks_to_delete))
-
-        # If exactly one previous task exists, remove its repeatable fields.
-        if len(previous_tasks) == 1:
-            prev = previous_tasks[0]
-            prev.repeatable_id = None
-            prev.repeatable_days = None
-
-        # Delete all tasks with the same repeatable_id
-        for t in tasks_to_delete:
-            db.delete(t)
-    else:
-        # Delete the single task
-        affected_dates = [task.date]
-        db.delete(task)
+    # Delete the single task
+    affected_dates = [task.date]
+    db.delete(task)
 
     db.commit()
 

@@ -3,8 +3,6 @@ from datetime import date, timedelta
 from uuid import uuid4
 
 today = date.today()
-repeatable_id_1 = str(uuid4())
-repeatable_id_2 = str(uuid4())
 
 test_tasks = [
     # Single tasks
@@ -15,8 +13,6 @@ test_tasks = [
         "note": "Milk, eggs, bread",
         "is_completed": False,
         "order": 1,
-        "repeatable_id": None,
-        "repeatable_days": None,
     },
     {
         "user_id": 1,
@@ -25,8 +21,6 @@ test_tasks = [
         "note": "Leg day at the gym",
         "is_completed": False,
         "order": 1,
-        "repeatable_id": None,
-        "repeatable_days": None,
     },
     # Repeated task (3-day journal)
     {
@@ -36,8 +30,6 @@ test_tasks = [
         "note": "Reflect on the day",
         "is_completed": False,
         "order": 2,
-        "repeatable_id": repeatable_id_1,
-        "repeatable_days": 3,
     },
     {
         "user_id": 1,
@@ -46,8 +38,6 @@ test_tasks = [
         "note": "Reflect on the day",
         "is_completed": False,
         "order": 2,
-        "repeatable_id": repeatable_id_1,
-        "repeatable_days": 3,
     },
     {
         "user_id": 1,
@@ -56,8 +46,6 @@ test_tasks = [
         "note": "Reflect on the day",
         "is_completed": False,
         "order": 1,
-        "repeatable_id": repeatable_id_1,
-        "repeatable_days": 3,
     },
     # Repeated task (2-day task)
     {
@@ -67,8 +55,6 @@ test_tasks = [
         "note": "Go through useEffect deep dive",
         "is_completed": False,
         "order": 3,
-        "repeatable_id": repeatable_id_2,
-        "repeatable_days": 2,
     },
     {
         "user_id": 1,
@@ -77,8 +63,6 @@ test_tasks = [
         "note": "Go through useEffect deep dive",
         "is_completed": False,
         "order": 3,
-        "repeatable_id": repeatable_id_2,
-        "repeatable_days": 2,
     },
 ]
 

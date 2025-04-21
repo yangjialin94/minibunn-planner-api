@@ -24,7 +24,7 @@ def test_notes_are_ordered(client):
     res = client.get("/notes/")
     notes = res.json()
     assert len(notes) == 3
-    assert [n["detail"] for n in notes] == ["Note A", "Note B", "Note C"]
+    assert [n["detail"] for n in notes] == ["Note C", "Note B", "Note A"]
     assert [n["order"] for n in notes] == [1, 2, 3]
 
 
@@ -46,21 +46,23 @@ def test_update_note_order(client):
     """
     Test reordering a note shifts other notes correctly.
     """
-    # Create 3 notes
-    note_ids = []
+    # Create 3 notes: newest is Note 3 at order 1
+    ids = []
     for i in range(3):
         res = client.post("/notes/", json={"detail": f"Note {i+1}"})
-        note_ids.append(res.json()["id"])
+        ids.append(res.json()["id"])
 
-    # Move Note 1 (order 1) to order 3
-    patch = client.patch(f"/notes/{note_ids[0]}", json={"order": 3})
+    # At this point: order is [Note 3, Note 2, Note 1]
+
+    # Move Note 1 (currently order 3) to order 1
+    patch = client.patch(f"/notes/{ids[0]}", json={"order": 1})
     assert patch.status_code == 200
-    assert patch.json()["order"] == 3
+    assert patch.json()["order"] == 1
 
-    # Fetch all notes and verify order is updated
+    # Fetch all notes and verify new order
     res = client.get("/notes/")
     ordered = [n["detail"] for n in res.json()]
-    assert ordered == ["Note 2", "Note 3", "Note 1"]
+    assert ordered == ["Note 1", "Note 3", "Note 2"]
 
 
 def test_patch_multiple_update_types_fails(client):
