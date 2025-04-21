@@ -13,8 +13,6 @@ class TaskCreate(BaseModel):
     title: Optional[str] = ""
     note: Optional[str] = ""
     is_completed: bool = False
-    repeatable_id: Optional[str] = None
-    repeatable_days: Optional[int] = None
 
 
 class TaskUpdate(BaseModel):
@@ -40,8 +38,6 @@ class TaskOut(BaseModel):
     note: Optional[str]
     is_completed: bool
     order: int
-    repeatable_id: Optional[str]
-    repeatable_days: Optional[int]
 
     model_config = ConfigDict(from_attributes=True)
 
