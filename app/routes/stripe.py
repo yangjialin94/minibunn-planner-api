@@ -272,14 +272,16 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     elif event_type == "customer.subscription.updated":
         # Update subscription details when Stripe updates them
         subscription_id = data_object.get("id")
-        status = data_object.get("status")  # can be active, past_due, canceled, etc.
+        status = data_object.get(
+            "status"
+        )  # can be active, trialing, past_due, canceled, etc.
         customer_id = data_object.get("customer")
         user = db.query(User).filter_by(stripe_customer_id=customer_id).first()
 
         if user:
             user.stripe_subscription_id = subscription_id
             user.subscription_status = status
-            user.is_subscribed = status == "active"
+            user.is_subscribed = status in ("active", "trialing")
             db.commit()
 
     elif event_type == "customer.subscription.deleted":
