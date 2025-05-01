@@ -232,16 +232,20 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     Handle Stripe post-checkout events.
     """
     # Verify the Stripe webhook signature
-    payload = await request.body()
-    sig_header = request.headers.get("stripe-signature")
+    payload = (await request.body()).decode("utf-8")
+    sig_header = request.headers.get("stripe-signature", "")
+    webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+    print("STRIPE_PAYLOAD:", payload)
+    print("STRIPE_SIG_HEADER:", sig_header)
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, os.getenv("STRIPE_WEBHOOK_SECRET")
-        )
-    except Exception as e:
-        print("Stripe webhook error:", e)
-        raise HTTPException(status_code=400, detail="Webhook signature invalid")
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except ValueError:
+        raise HTTPException(400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError as e:
+        print("Stripe signature verification failed:", e)
+        raise HTTPException(400, detail="Invalid signature")
 
     # Get the event type and data object
     event_type = event["type"]
