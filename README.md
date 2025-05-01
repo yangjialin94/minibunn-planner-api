@@ -1,10 +1,14 @@
 # Documentation
 
-## Run
+## Local Run
 
 ```bash
 source .venv/bin/activate
 univorn app.main:app --reload
+```
+
+```bash
+stripe listen --forward-to localhost:8000/api/stripe/webhook
 ```
 
 ## Environment Variables
@@ -76,40 +80,17 @@ TRIAL_DAYS=1
     alembic downgrade -1  # go back one migration
     ```
 
-## File Structure
+## Release
 
-```text
-app/
-├── api/
-│   ├── deps/                   # Shared dependencies (e.g., get_user)
-│   │   └── auth.py
-│   ├── routes/                 # Route definitions
-│   │   ├── __init__.py
-│   │   ├── tasks.py
-│   │   └── journals.py
-│   └── main.py                 # App entry point
-├── core/                       # Core config, settings, startup logic
-│   ├── config.py
-│   ├── database.py
-│   └── init_db.py              # Optional DB seeding/init
-├── models/                     # SQLAlchemy models
-│   ├── __init__.py
-│   └── user.py
-│   └── task.py
-│   └── journal.py
-├── schemas/                    # Pydantic schemas
-│   ├── __init__.py
-│   └── task.py
-│   └── journal.py
-│   └── user.py
-├── services/                   # Business logic, sync jobs, complex ops
-│   └── task_service.py
-│   └── journal_service.py
-├── utils/                      # Helper modules (e.g., date, ordering)
-│   └── ordering.py
-│   └── firebase.py
-├── tests/                      # Pytest unit & integration tests
-│   ├── test_tasks.py
-│   └── test_journals.py
-└── __init__.py
-```
+1. Create an annotated tag
+
+   ```bash
+   git tag -a v1.0.0 -m "comment"
+   git push origin v1.0.0
+   ```
+
+2. Draft a GitHub Release on that tag
+   - Go to Releases → Draft a new release
+   - Select your new tag
+   - Fill in a “What’s changed” summary or changelog items
+   - Publish
