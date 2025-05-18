@@ -35,6 +35,7 @@ class CheckoutSessionCreate(BaseModel):
     """
 
     price_id: str
+    mode: str
     success_url: str
     cancel_url: str
 

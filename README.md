@@ -4,7 +4,7 @@
 
 ```bash
 source .venv/bin/activate
-univorn app.main:app --reload
+uvicorn app.main:app --reload
 ```
 
 ```bash
@@ -22,7 +22,7 @@ WEB_URL=http://localhost:3000
 STRIPE_SECRET_KEY=sk_test_
 STRIPE_WEBHOOK_SECRET=whsec_
 
-TRIAL_DAYS=1
+TRIAL_DAYS=14
 ```
 
 ## Test

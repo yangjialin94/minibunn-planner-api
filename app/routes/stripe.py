@@ -27,6 +27,16 @@ def get_subscription_status(
     Get the current subscription status for the user.
     """
     if not user.stripe_subscription_id:
+        if user.subscription_status == "lifetime":
+            return {
+                "is_subscribed": True,
+                "status": "lifetime",
+                "period_end_date": None,
+                "cancel_at_period_end": None,
+                "plan_name": "Lifetime Access",
+                "price_amount": 29.99,
+                "price_currency": "USD",
+            }
         return JSONResponse(
             {
                 "is_subscribed": False,
@@ -57,9 +67,6 @@ def get_subscription_status(
         )
         price = item["price"]
         product = price["product"]
-        plan_name = product["name"]
-        price_amount = price["unit_amount"] / 100  # $3.49
-        price_currency = price["currency"].upper()
 
         # Return the subscription status
         return {
@@ -76,10 +83,10 @@ def get_subscription_status(
         logger.exception(
             "Stripe error while creating checkout session | "
             "type=%s code=%s param=%s message=%s",
-            e.error.type,  # e.g. 'invalid_request_error'
-            e.error.code,  # e.g. 'resource_missing'
-            e.error.param,  # e.g. 'price'
-            e.error.message,  # human‑readable
+            e.error.type,
+            e.error.code,
+            e.error.param,
+            e.error.message,
         )
         raise HTTPException(
             status_code=502,
@@ -112,10 +119,10 @@ async def create_checkout_session(
         logger.exception(
             "Stripe error while creating checkout session | "
             "type=%s code=%s param=%s message=%s",
-            e.error.type,  # e.g. 'invalid_request_error'
-            e.error.code,  # e.g. 'resource_missing'
-            e.error.param,  # e.g. 'price'
-            e.error.message,  # human‑readable
+            e.error.type,
+            e.error.code,
+            e.error.param,
+            e.error.message,
         )
         raise HTTPException(
             status_code=502,
@@ -134,10 +141,10 @@ async def create_checkout_session(
         logger.exception(
             "Stripe error while creating checkout session | "
             "type=%s code=%s param=%s message=%s",
-            e.error.type,  # e.g. 'invalid_request_error'
-            e.error.code,  # e.g. 'resource_missing'
-            e.error.param,  # e.g. 'price'
-            e.error.message,  # human‑readable
+            e.error.type,
+            e.error.code,
+            e.error.param,
+            e.error.message,
         )
         raise HTTPException(
             status_code=502,
@@ -155,15 +162,19 @@ async def create_checkout_session(
                     }
                 },
             }
-            if not has_previous_subscription
+            if not has_previous_subscription and checkout_session.mode == "subscription"
             else {}
         )
 
         session = stripe.checkout.Session.create(
             customer=user.stripe_customer_id,
-            mode="subscription",
+            mode=checkout_session.mode,
             line_items=[{"price": checkout_session.price_id, "quantity": 1}],
-            subscription_data=subscription_data,
+            **(
+                {"subscription_data": subscription_data}
+                if checkout_session.mode == "subscription"
+                else {}
+            ),
             success_url=checkout_session.success_url,
             cancel_url=checkout_session.cancel_url,
         )
@@ -174,10 +185,10 @@ async def create_checkout_session(
         logger.exception(
             "Stripe error while creating checkout session | "
             "type=%s code=%s param=%s message=%s",
-            e.error.type,  # e.g. 'invalid_request_error'
-            e.error.code,  # e.g. 'resource_missing'
-            e.error.param,  # e.g. 'price'
-            e.error.message,  # human‑readable
+            e.error.type,
+            e.error.code,
+            e.error.param,
+            e.error.message,
         )
         raise HTTPException(
             status_code=502,
@@ -215,10 +226,10 @@ def cancel_subscription(
         logger.exception(
             "Stripe error while creating checkout session | "
             "type=%s code=%s param=%s message=%s",
-            e.error.type,  # e.g. 'invalid_request_error'
-            e.error.code,  # e.g. 'resource_missing'
-            e.error.param,  # e.g. 'price'
-            e.error.message,  # human‑readable
+            e.error.type,
+            e.error.code,
+            e.error.param,
+            e.error.message,
         )
         raise HTTPException(
             status_code=502,
@@ -250,22 +261,47 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     # Get the event type and data object
     event_type = event["type"]
     data_object = event["data"]["object"]
+    customer_id = data_object.get("customer")
 
     if event_type == "checkout.session.completed":
-        # When a checkout session is completed, update the subscription info.
-        customer_id = data_object.get("customer")
         subscription_id = data_object.get("subscription")
+        mode = data_object.get("mode")  # "subscription" or "payment"
         user = db.query(User).filter_by(stripe_customer_id=customer_id).first()
 
         if user:
             user.is_subscribed = True
-            user.stripe_subscription_id = subscription_id
-            user.subscription_status = "active"
+
+            if subscription_id and mode == "subscription":
+                # Update the user's subscription status
+                if (
+                    user.stripe_subscription_id
+                    and user.stripe_subscription_id != subscription_id
+                ):
+                    # Cancel old subscription if it exists
+                    try:
+                        stripe.Subscription.delete(user.stripe_subscription_id)
+                    except stripe.error.StripeError as e:
+                        logger.warning("Failed to cancel old subscription: %s", e)
+
+                user.stripe_subscription_id = subscription_id
+                user.subscription_status = "active"
+            elif mode == "payment":
+                user.subscription_status = "lifetime"
+                user.plan_name = "Lifetime Access"
+
+                # Cancel old subscription if it exists
+                if user.stripe_subscription_id:
+                    try:
+                        stripe.Subscription.delete(user.stripe_subscription_id)
+                    except stripe.error.StripeError as e:
+                        logger.warning("Failed to cancel old subscription: %s", e)
+
+                    user.stripe_subscription_id = None
+
             db.commit()
 
     elif event_type == "invoice.paid":
         # Payment succeeded for an invoice (e.g. recurring payments)
-        customer_id = data_object.get("customer")
         user = db.query(User).filter_by(stripe_customer_id=customer_id).first()
 
         if user:
@@ -279,7 +315,6 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         status = data_object.get(
             "status"
         )  # can be active, trialing, past_due, canceled, etc.
-        customer_id = data_object.get("customer")
         user = db.query(User).filter_by(stripe_customer_id=customer_id).first()
 
         if user:
@@ -290,18 +325,20 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
     elif event_type == "customer.subscription.deleted":
         # A subscription was canceled or deleted.
+        subscription_id = data_object.get("id")
         customer_id = data_object.get("customer")
         user = db.query(User).filter_by(stripe_customer_id=customer_id).first()
 
-        if user:
+        # Check if the user has a subscription linked to the customer ID
+        if user and user.stripe_subscription_id == subscription_id:
             if data_object.get("cancel_at_period_end"):
-                # Cancel at period end
                 user.subscription_status = "canceled"
             else:
-                # Immediate cancellation
                 user.subscription_status = "deleted"
                 user.is_subscribed = False
                 user.stripe_subscription_id = None
+
+            db.commit()
 
             db.commit()
 
@@ -314,5 +351,10 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             user.is_subscribed = False
             user.subscription_status = "past_due"
             db.commit()
+
+    else:
+        logger.warning(
+            f"Customer ID {customer_id or '[unknown]'} not linked to any user."
+        )
 
     return {"received": True}
