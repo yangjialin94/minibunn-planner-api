@@ -4,13 +4,13 @@ These routes are only for testing purposes.
 
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
-from app.deps.auth import get_token
+from app.deps.auth import get_subscribed_user, get_token
 from app.models.user import User
-from app.schemas.user import UserOut, UserOutFull
+from app.schemas.user import UserOut, UserOutFull, UserUpdate
 
 # Create a router
 router = APIRouter()
@@ -33,7 +33,7 @@ def get_users(
     return users
 
 
-@router.get("/by_id{user_id}", response_model=UserOutFull)
+@router.get("/by_id/{user_id}", response_model=UserOutFull)
 def get_user_with_data(user_id: int, db: Session = Depends(get_db)):
     """
     Get a specific user by user id along with their tasks and journals.
@@ -82,3 +82,29 @@ def get_current_user(
 
     print(f"New user created: {new_user}")
     return new_user
+
+
+@router.patch("/{user_id}", response_model=UserOut)
+def update_user(
+    user_id: int,
+    updates: UserUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_subscribed_user),
+):
+    """
+    Update a user by user id.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_data = updates.model_dump(exclude_unset=True)
+
+    # Update the user
+    update_data = updates.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(user, key, value)
+
+    db.commit()
+    db.refresh(user)
+    return user

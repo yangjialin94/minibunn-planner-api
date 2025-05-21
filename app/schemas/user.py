@@ -46,3 +46,12 @@ class UserOutFull(BaseModel):
     journals: List[JournalOut] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserUpdate(BaseModel):
+    """
+    User Update Pydantic Schema (request from client)
+    """
+
+    name: Optional[str]
+    # email: Optional[str] # Not allowed to update email for security reasons
