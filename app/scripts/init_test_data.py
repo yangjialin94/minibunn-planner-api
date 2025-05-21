@@ -18,4 +18,4 @@ if __name__ == "__main__":
         finally:
             db.close()
     else:
-        print(" Skipping test data insert: ENV is not 'dev'")
+        print("Skipping test data insert: ENV is not 'dev'")

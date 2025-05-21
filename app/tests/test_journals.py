@@ -72,7 +72,7 @@ def test_post_journal_already_exists(client):
     assert res.json()["detail"] == "Journal already exists for this date"
 
 
-def test_patch_update_journal(client):
+def test_patch_journal(client):
     """
     Tests updating a journal entry.
     """

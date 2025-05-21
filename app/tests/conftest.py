@@ -68,3 +68,21 @@ def client():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     return TestClient(app)
+
+
+# Create new user for each test
+@pytest.fixture
+def seeded_client(client):
+    db = TestingSessionLocal()
+    db.add(
+        User(
+            id=1,
+            firebase_uid="test-firebase-uid",
+            name="Test User",
+            email="test@example.com",
+            is_subscribed=True,
+        )
+    )
+    db.commit()
+    db.close()
+    return client
