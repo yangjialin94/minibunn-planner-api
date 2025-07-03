@@ -50,3 +50,6 @@ __test__/
 *.swp
 *.bak
 *.tmp
+
+# Firebase service account key
+app/services/firebase_service_account.json
