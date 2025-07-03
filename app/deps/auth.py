@@ -76,7 +76,7 @@ def get_subscribed_user(
     user = get_user(credentials, db)
 
     # Check if the user is subscribed
-    if user.is_subscribed:
+    if user.is_subscribed is True:
         return user
     else:
         raise HTTPException(
