@@ -24,10 +24,21 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 # Add CORS middleware
-print("CORS will allow:", WEB_URL)
+allowed_origins = []
+if WEB_URL and WEB_URL != "*":
+    allowed_origins.append(WEB_URL)
+    # Also add localhost and 127.0.0.1 variants for development
+    if "localhost" in WEB_URL:
+        allowed_origins.append(WEB_URL.replace("localhost", "127.0.0.1"))
+    elif "127.0.0.1" in WEB_URL:
+        allowed_origins.append(WEB_URL.replace("127.0.0.1", "localhost"))
+else:
+    allowed_origins = ["*"]
+
+print("CORS will allow:", allowed_origins)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[WEB_URL],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

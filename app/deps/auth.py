@@ -1,7 +1,5 @@
-import os
 from datetime import datetime
 
-import firebase_admin
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from firebase_admin import auth as firebase_auth

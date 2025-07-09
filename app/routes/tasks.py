@@ -7,7 +7,7 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.deps.auth import get_subscribed_user
+from app.deps.auth import get_user
 from app.models.task import Task
 from app.models.user import User
 from app.schemas.task import CompletionOut, TaskCreate, TaskOut, TaskUpdate
@@ -21,7 +21,7 @@ def get_tasks(
     start: Optional[date] = None,
     end: Optional[date] = None,
     db: Session = Depends(get_db),
-    user: User = Depends(get_subscribed_user),
+    user: User = Depends(get_user),
 ):
     """
     Get tasks for the current user between the start and end dates.
@@ -37,7 +37,7 @@ def get_tasks(
 def create_task(
     task: TaskCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_subscribed_user),
+    user: User = Depends(get_user),
 ):
     """
     Create a new task for the current user.
@@ -71,7 +71,7 @@ def update_task(
     task_id: int,
     updates: TaskUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_subscribed_user),
+    user: User = Depends(get_user),
 ):
     """
     Update a task for the current user.
@@ -118,7 +118,7 @@ def update_task(
                 .all()
             )
             for idx, t in enumerate(old_day_tasks, start=1):
-                t.order = idx
+                setattr(t, "order", idx)
 
             # Shift other tasks on the new date
             new_day_tasks = (
@@ -130,15 +130,15 @@ def update_task(
                 .all()
             )
             for t in new_day_tasks:
-                t.order += 1
+                setattr(t, "order", getattr(t, "order") + 1)
 
             # Put the moved task at the top
-            task.order = 1
+            setattr(task, "order", 1)
 
     # Handle order update
     elif "order" in update_fields:
         new_order = update_data.get("order")
-        if new_order < 1:
+        if new_order is None or new_order < 1:
             raise HTTPException(status_code=400, detail="Order must be 1 or greater")
 
         same_day_tasks = (
@@ -153,17 +153,19 @@ def update_task(
         if new_order > max_order:
             new_order = max_order
 
+        current_order = getattr(task, "order")
         for t in same_day_tasks:
+            t_order = getattr(t, "order")
             # Shift tasks down
-            if task.order < new_order:
-                if task.order < t.order <= new_order:
-                    t.order -= 1
+            if current_order < new_order:
+                if current_order < t_order <= new_order:
+                    setattr(t, "order", t_order - 1)
             # Shift tasks up
             else:
-                if new_order <= t.order < task.order:
-                    t.order += 1
+                if new_order <= t_order < current_order:
+                    setattr(t, "order", t_order + 1)
 
-        task.order = new_order
+        setattr(task, "order", new_order)
 
     # Handle title/note update
     elif {"title", "note"} & update_fields:
@@ -186,15 +188,17 @@ def update_task(
 
         if new_status:
             # If marking as completed, move the task to the last position.
+            current_order = getattr(task, "order")
             for t in same_day_tasks:
-                if t.order > task.order:
-                    t.order -= 1
-            task.order = len(same_day_tasks) + 1
+                t_order = getattr(t, "order")
+                if t_order > current_order:
+                    setattr(t, "order", t_order - 1)
+            setattr(task, "order", len(same_day_tasks) + 1)
         else:
             # If marking as incomplete, move the task to the first position.
             for t in same_day_tasks:
-                t.order += 1
-            task.order = 1
+                setattr(t, "order", getattr(t, "order") + 1)
+            setattr(task, "order", 1)
 
     db.commit()
     db.refresh(task)
@@ -205,7 +209,7 @@ def update_task(
 def delete_task(
     task_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_subscribed_user),
+    user: User = Depends(get_user),
 ):
     """
     Delete a task for the current user.
@@ -233,7 +237,7 @@ def delete_task(
         )
 
         for i, t in enumerate(remaining_tasks, start=1):
-            t.order = i
+            setattr(t, "order", i)
 
     db.commit()
     return {"message": "Task(s) deleted and reordered"}
@@ -244,7 +248,7 @@ def get_completion_status(
     start: date,
     end: date,
     db: Session = Depends(get_db),
-    user: User = Depends(get_subscribed_user),
+    user: User = Depends(get_user),
 ):
     user_id = user.id
 

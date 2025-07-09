@@ -8,7 +8,6 @@ from fastapi.responses import JSONResponse
 from firebase_admin import auth
 from sqlalchemy.orm import Session
 
-from app.core.config import TRIAL_DAYS
 from app.core.database import get_db
 from app.deps.auth import get_subscribed_user, get_user
 from app.models.user import User
@@ -26,8 +25,8 @@ def get_subscription_status(
     """
     Get the current subscription status for the user.
     """
-    if not user.stripe_subscription_id:
-        if user.subscription_status == "lifetime":
+    if not getattr(user, "stripe_subscription_id"):
+        if getattr(user, "subscription_status") == "lifetime":
             return {
                 "is_subscribed": True,
                 "status": "lifetime",
@@ -52,7 +51,7 @@ def get_subscription_status(
     try:
         # Retrieve the subscription from Stripe
         subscription = stripe.Subscription.retrieve(
-            user.stripe_subscription_id, expand=["items.data.price.product"]
+            getattr(user, "stripe_subscription_id"), expand=["items.data.price.product"]
         )
 
         # Parse the subscription details
@@ -79,18 +78,11 @@ def get_subscription_status(
             "price_currency": price["currency"].upper(),
         }
 
-    except stripe.error.StripeError as e:
-        logger.exception(
-            "Stripe error while creating checkout session | "
-            "type=%s code=%s param=%s message=%s",
-            e.error.type,
-            e.error.code,
-            e.error.param,
-            e.error.message,
-        )
+    except stripe.StripeError as e:
+        logger.exception("Stripe error while getting subscription status: %s", str(e))
         raise HTTPException(
             status_code=502,
-            detail=e.error.message or "Stripe error",
+            detail=str(e) or "Stripe error",
         )
 
 
@@ -104,95 +96,50 @@ async def create_checkout_session(
     Create a Stripe Checkout session for a user.
     """
     # Get the user's Firebase UID and email
-    firebase_uid = user.firebase_uid
-    email = user.email
+    firebase_uid = getattr(user, "firebase_uid")
+    email = getattr(user, "email")
 
     # Create a Stripe customer if the user doesn't have one
     try:
-        if not user.stripe_customer_id:
+        if not getattr(user, "stripe_customer_id"):
             customer = stripe.Customer.create(email=email)
 
             # Update the user with the Stripe customer ID
-            user.stripe_customer_id = customer.id
+            setattr(user, "stripe_customer_id", customer.id)
             db.commit()
-    except stripe.error.StripeError as e:
-        logger.exception(
-            "Stripe error while creating checkout session | "
-            "type=%s code=%s param=%s message=%s",
-            e.error.type,
-            e.error.code,
-            e.error.param,
-            e.error.message,
-        )
+    except stripe.StripeError as e:
+        logger.exception("Stripe error while creating customer: %s", str(e))
         raise HTTPException(
             status_code=502,
-            detail=e.error.message or "Stripe error",
-        )
-
-    # Check for any past or active subscriptions
-    try:
-        subscriptions = stripe.Subscription.list(
-            customer=user.stripe_customer_id,
-            status="all",
-            limit=1,
-        )
-        has_previous_subscription = len(subscriptions.data) > 0
-    except stripe.error.StripeError as e:
-        logger.exception(
-            "Stripe error while creating checkout session | "
-            "type=%s code=%s param=%s message=%s",
-            e.error.type,
-            e.error.code,
-            e.error.param,
-            e.error.message,
-        )
-        raise HTTPException(
-            status_code=502,
-            detail=e.error.message or "Stripe error",
+            detail=str(e) or "Stripe error",
         )
 
     # Create a Stripe Checkout session
     try:
-        subscription_data = (
-            {
-                "trial_period_days": TRIAL_DAYS,
-                "trial_settings": {
-                    "end_behavior": {
-                        "missing_payment_method": "cancel",
-                    }
-                },
-            }
-            if not has_previous_subscription and checkout_session.mode == "subscription"
-            else {}
-        )
-
-        session = stripe.checkout.Session.create(
-            customer=user.stripe_customer_id,
-            mode=checkout_session.mode,
-            line_items=[{"price": checkout_session.price_id, "quantity": 1}],
-            **(
-                {"subscription_data": subscription_data}
-                if checkout_session.mode == "subscription"
-                else {}
-            ),
-            success_url=checkout_session.success_url,
-            cancel_url=checkout_session.cancel_url,
-        )
+        if checkout_session.mode == "subscription":
+            session = stripe.checkout.Session.create(
+                customer=getattr(user, "stripe_customer_id"),
+                mode=checkout_session.mode,  # type: ignore
+                line_items=[{"price": checkout_session.price_id, "quantity": 1}],
+                success_url=checkout_session.success_url,
+                cancel_url=checkout_session.cancel_url,
+            )
+        else:
+            session = stripe.checkout.Session.create(
+                customer=getattr(user, "stripe_customer_id"),
+                mode=checkout_session.mode,  # type: ignore
+                line_items=[{"price": checkout_session.price_id, "quantity": 1}],
+                success_url=checkout_session.success_url,
+                cancel_url=checkout_session.cancel_url,
+            )
 
         # Return the session URL
         return {"url": session.url}
-    except stripe.error.StripeError as e:
-        logger.exception(
-            "Stripe error while creating checkout session | "
-            "type=%s code=%s param=%s message=%s",
-            e.error.type,
-            e.error.code,
-            e.error.param,
-            e.error.message,
-        )
+    except stripe.StripeError as e:
+        logger.exception("Stripe error while creating checkout session: %s", str(e))
         raise HTTPException(
             status_code=502,
-            detail=e.error.message or "Stripe error",
+            detail=str(e) or "Stripe error",
         )
 
 
@@ -204,36 +151,32 @@ def cancel_subscription(
     """
     Cancel the user's active Stripe subscription.
     """
-    if not user.stripe_subscription_id:
+    if not getattr(user, "stripe_subscription_id"):
         raise HTTPException(status_code=400, detail="No active subscription to cancel.")
 
     try:
         # Cancel at period end (or use cancel_now=True to cancel immediately)
         stripe.Subscription.modify(
-            user.stripe_subscription_id,
+            getattr(user, "stripe_subscription_id"),
             cancel_at_period_end=True,
         )
 
         # Update local status immediately (optional: delay until webhook arrives)
-        user.subscription_status = "canceled"
+        setattr(user, "subscription_status", "canceled")
         db.commit()
 
         return {
             "message": "Subscription will be canceled at the end of the current billing period."
         }
 
-    except stripe.error.StripeError as e:
+    except stripe.StripeError as e:
         logger.exception(
-            "Stripe error while creating checkout session | "
-            "type=%s code=%s param=%s message=%s",
-            e.error.type,
-            e.error.code,
-            e.error.param,
-            e.error.message,
+            "Stripe error while canceling subscription | " "message=%s",
+            str(e),
         )
         raise HTTPException(
             status_code=502,
-            detail=e.error.message or "Stripe error",
+            detail=str(e) or "Stripe error",
         )
 
 
@@ -254,7 +197,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
     except ValueError:
         raise HTTPException(400, detail="Invalid payload")
-    except stripe.error.SignatureVerificationError as e:
+    except stripe.SignatureVerificationError as e:
         print("Stripe signature verification failed:", e)
         raise HTTPException(400, detail="Invalid signature")
 
@@ -269,34 +212,36 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         user = db.query(User).filter_by(stripe_customer_id=customer_id).first()
 
         if user:
-            user.is_subscribed = True
+            setattr(user, "is_subscribed", True)
 
             if subscription_id and mode == "subscription":
                 # Update the user's subscription status
+                existing_subscription_id = getattr(user, "stripe_subscription_id")
                 if (
-                    user.stripe_subscription_id
-                    and user.stripe_subscription_id != subscription_id
+                    existing_subscription_id
+                    and existing_subscription_id != subscription_id
                 ):
                     # Cancel old subscription if it exists
                     try:
-                        stripe.Subscription.delete(user.stripe_subscription_id)
-                    except stripe.error.StripeError as e:
+                        stripe.Subscription.delete(existing_subscription_id)
+                    except stripe.StripeError as e:
                         logger.warning("Failed to cancel old subscription: %s", e)
 
-                user.stripe_subscription_id = subscription_id
-                user.subscription_status = "active"
+                setattr(user, "stripe_subscription_id", subscription_id)
+                setattr(user, "subscription_status", "active")
             elif mode == "payment":
-                user.subscription_status = "lifetime"
-                user.plan_name = "Lifetime Access"
+                setattr(user, "subscription_status", "lifetime")
+                setattr(user, "plan_name", "Lifetime Access")
 
                 # Cancel old subscription if it exists
-                if user.stripe_subscription_id:
+                existing_subscription_id = getattr(user, "stripe_subscription_id")
+                if existing_subscription_id:
                     try:
-                        stripe.Subscription.delete(user.stripe_subscription_id)
-                    except stripe.error.StripeError as e:
+                        stripe.Subscription.delete(existing_subscription_id)
+                    except stripe.StripeError as e:
                         logger.warning("Failed to cancel old subscription: %s", e)
 
-                    user.stripe_subscription_id = None
+                    setattr(user, "stripe_subscription_id", None)
 
             db.commit()
 
@@ -305,8 +250,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         user = db.query(User).filter_by(stripe_customer_id=customer_id).first()
 
         if user:
-            user.is_subscribed = True
-            user.subscription_status = "active"
+            setattr(user, "is_subscribed", True)
+            setattr(user, "subscription_status", "active")
             db.commit()
 
     elif event_type == "customer.subscription.updated":
@@ -318,9 +263,9 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         user = db.query(User).filter_by(stripe_customer_id=customer_id).first()
 
         if user:
-            user.stripe_subscription_id = subscription_id
-            user.subscription_status = status
-            user.is_subscribed = status in ("active", "trialing")
+            setattr(user, "stripe_subscription_id", subscription_id)
+            setattr(user, "subscription_status", status)
+            setattr(user, "is_subscribed", status in ("active", "trialing"))
             db.commit()
 
     elif event_type == "customer.subscription.deleted":
@@ -330,15 +275,13 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         user = db.query(User).filter_by(stripe_customer_id=customer_id).first()
 
         # Check if the user has a subscription linked to the customer ID
-        if user and user.stripe_subscription_id == subscription_id:
+        if user and getattr(user, "stripe_subscription_id") == subscription_id:
             if data_object.get("cancel_at_period_end"):
-                user.subscription_status = "canceled"
+                setattr(user, "subscription_status", "canceled")
             else:
-                user.subscription_status = "deleted"
-                user.is_subscribed = False
-                user.stripe_subscription_id = None
-
-            db.commit()
+                setattr(user, "subscription_status", "deleted")
+                setattr(user, "is_subscribed", False)
+                setattr(user, "stripe_subscription_id", None)
 
             db.commit()
 
@@ -348,8 +291,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         user = db.query(User).filter_by(stripe_customer_id=customer_id).first()
 
         if user:
-            user.is_subscribed = False
-            user.subscription_status = "past_due"
+            setattr(user, "is_subscribed", False)
+            setattr(user, "subscription_status", "past_due")
             db.commit()
 
     else:

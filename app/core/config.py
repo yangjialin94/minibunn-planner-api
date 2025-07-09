@@ -15,7 +15,6 @@ ENV = os.getenv("ENV", "dev")
 
 # Stripe environment variables
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
-TRIAL_DAYS = os.getenv("TRIAL_DAYS", 14)
 
 # Firebase environment variables
 FIREBASE_TYPE = os.getenv("FIREBASE_TYPE")
