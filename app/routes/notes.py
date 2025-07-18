@@ -1,9 +1,6 @@
-from datetime import date, timedelta
-from typing import List, Optional
-from uuid import uuid4
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -16,17 +13,28 @@ from app.schemas.note import NoteCreate, NoteOut, NoteUpdate
 router = APIRouter()
 
 
-@router.get("/", response_model=List[NoteOut])
-def get_notes(
+@router.get("/", response_model=NoteOut)
+def get_or_create_note(
+    date: date,
     db: Session = Depends(get_db),
     user: User = Depends(get_subscribed_user),
 ):
     """
-    Get notes for the current user.
+    Get the note for the given date.
+    If it doesn't exist, create a new one and return it.
     """
+    # Get the note for the specified date
     user_id = user.id
-    query = db.query(Note).filter(Note.user_id == user_id)
-    return query.order_by(Note.order).all()
+    note = db.query(Note).filter(Note.user_id == user_id, Note.date == date).first()
+    if note:
+        return note
+
+    # Create a new note if it doesn't exist
+    new_note = Note(date=date, user_id=user_id, entry="")
+    db.add(new_note)
+    db.commit()
+    db.refresh(new_note)
+    return new_note
 
 
 @router.post("/", response_model=NoteOut)
@@ -38,24 +46,20 @@ def create_note(
     """
     Create a new note for the current user.
     """
+    # Check if note already exists for this date
     user_id = user.id
-
-    # Shift existing notes' order by 1
-    db.query(Note).filter(Note.user_id == user_id).update({Note.order: Note.order + 1})
-
-    # Create the new note
-    new_note = Note(
-        user_id=user_id,
-        date=date.today(),
-        detail=note.detail,
-        order=1,
+    existing = (
+        db.query(Note).filter(Note.user_id == user_id, Note.date == note.date).first()
     )
+    if existing:
+        raise HTTPException(status_code=400, detail="Note already exists for this date")
 
-    db.add(new_note)
+    # Create the note
+    db_note = Note(**note.model_dump(), user_id=user_id)
+    db.add(db_note)
     db.commit()
-    db.refresh(new_note)
-
-    return new_note
+    db.refresh(db_note)
+    return db_note
 
 
 @router.patch("/{note_id}", response_model=NoteOut)
@@ -68,96 +72,40 @@ def update_note(
     """
     Update a note for the current user.
     """
+    # Check if note exists
     user_id = user.id
     note = db.query(Note).filter(Note.id == note_id, Note.user_id == user_id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
 
+    # Update the note
     update_data = updates.model_dump(exclude_unset=True)
-
-    # Enforce only one type of update at a time
-    update_fields = set(update_data.keys())
-    groups = {
-        "order": {"order"},
-        "detail": {"detail"},
-    }
-
-    matched_groups = [group for group, keys in groups.items() if update_fields & keys]
-    if len(matched_groups) > 1:
-        raise HTTPException(
-            status_code=400,
-            detail="Only one type of update is allowed per request (order or detail).",
-        )
-
-    # Handle order update
-    if "order" in update_fields:
-        new_order = update_data.get("order")
-        if new_order < 1:
-            raise HTTPException(status_code=400, detail="Order must be 1 or greater")
-
-        other_notes = (
-            db.query(Note)
-            .filter(Note.user_id == user_id, Note.id != note_id)
-            .order_by(Note.order)
-            .all()
-        )
-
-        # Ensure the new order is within the valid range
-        max_order = len(other_notes) + 1
-        if new_order > max_order:
-            new_order = max_order
-
-        for t in other_notes:
-            # Shift notes down
-            if note.order < new_order:
-                if note.order < t.order <= new_order:
-                    t.order -= 1
-            # Shift notes up
-            else:
-                if new_order <= t.order < note.order:
-                    t.order += 1
-
-        note.order = new_order
-
-    # Handle detail and date update
-    elif {"detail"} & update_fields:
-        note.detail = update_data.get("detail")
-        note.date = date.today()
+    for key, value in update_data.items():
+        setattr(note, key, value)
 
     db.commit()
     db.refresh(note)
     return note
 
 
-@router.delete("/{note_id}")
-def delete_note(
+@router.patch("/{note_id}", response_model=NoteOut)
+def clear_note(
     note_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_subscribed_user),
 ):
     """
-    Delete a note for the current user.
+    Update a note for the current user.
     """
+    # Check if note exists
     user_id = user.id
     note = db.query(Note).filter(Note.id == note_id, Note.user_id == user_id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    note_order = note.order
-
-    db.delete(note)
-    db.commit()
-
-    # Reorder the remaining notes
-    remaining_notes = (
-        db.query(Note)
-        .filter(Note.user_id == user_id, Note.order > note_order)
-        .order_by(Note.order)
-        .all()
-    )
-
-    for t in remaining_notes:
-        t.order -= 1
+    # Update the note
+    setattr(note, "entry", "")
 
     db.commit()
-    return {"message": "Note deleted and remaining reordered"}
+    db.refresh(note)
+    return note

@@ -22,11 +22,11 @@ test_tasks = [
         "is_completed": False,
         "order": 1,
     },
-    # Repeated task (3-day journal)
+    # Repeated task (3-day notes)
     {
         "user_id": 1,
         "date": today,
-        "title": "Write journal",
+        "title": "Write daily note",
         "note": "Reflect on the day",
         "is_completed": False,
         "order": 2,
@@ -34,7 +34,7 @@ test_tasks = [
     {
         "user_id": 1,
         "date": today + timedelta(days=1),
-        "title": "Write journal",
+        "title": "Write daily note",
         "note": "Reflect on the day",
         "is_completed": False,
         "order": 2,
@@ -42,7 +42,7 @@ test_tasks = [
     {
         "user_id": 1,
         "date": today + timedelta(days=2),
-        "title": "Write journal",
+        "title": "Write daily note",
         "note": "Reflect on the day",
         "is_completed": False,
         "order": 1,
@@ -66,11 +66,10 @@ test_tasks = [
     },
 ]
 
-test_journals = [
+test_notes = [
     {
         "user_id": 1,
         "date": today - timedelta(days=3),
-        "subject": "Good Old Days",
         "entry": (
             "Super happy to meet with old friends we used to hang out with all the time back in Chicago!\n"
             "Need to do this more often!"
@@ -79,7 +78,6 @@ test_journals = [
     {
         "user_id": 1,
         "date": today - timedelta(days=2),
-        "subject": "Reflection on Goals",
         "entry": (
             "Spent some time revisiting my goals for the year.\n"
             "I'm a bit behind on fitness, but ahead on learning."
@@ -88,7 +86,6 @@ test_journals = [
     {
         "user_id": 1,
         "date": today - timedelta(days=1),
-        "subject": "Solo Adventure",
         "entry": (
             "Tried hiking alone for the first time. Peaceful but also spooky near the end.\n"
             "Not sure I'd do it again without a buddy."
@@ -97,7 +94,6 @@ test_journals = [
     {
         "user_id": 1,
         "date": today,
-        "subject": "Tech Dive",
         "entry": (
             "Finally understood how useEffect cleanup works in React.\n"
             "Also cleaned up my GitHub profile a bit."

@@ -7,37 +7,37 @@ from unittest.mock import Mock, patch
 import pytest
 from sqlalchemy.orm import Session
 
-from app.models.journal import Journal
+from app.models.note import Note
 from app.models.user import User
-from app.scheduler import delete_empty_journals, start_scheduler
+from app.scheduler import delete_empty_notes, start_scheduler
 
 
 class TestScheduler:
     """Test suite for background task scheduler"""
 
     @patch("app.scheduler.SessionLocal")
-    def test_delete_empty_journals_success(self, mock_session_local):
-        """Test successful deletion of empty journals"""
+    def test_delete_empty_notes_success(self, mock_session_local):
+        """Test successful deletion of empty notes"""
         # Mock database session and data
         mock_db = Mock()
         mock_session_local.return_value = mock_db
 
-        # Mock empty journals to be deleted
-        mock_empty_journal1 = Mock()
-        mock_empty_journal2 = Mock()
-        mock_empty_journals = [mock_empty_journal1, mock_empty_journal2]
+        # Mock empty notes to be deleted
+        mock_empty_note1 = Mock()
+        mock_empty_note2 = Mock()
+        mock_empty_notes = [mock_empty_note1, mock_empty_note2]
 
         mock_db.query.return_value.filter.return_value.all.return_value = (
-            mock_empty_journals
+            mock_empty_notes
         )
 
         with patch("builtins.print") as mock_print:
-            delete_empty_journals()
+            delete_empty_notes()
 
-            # Verify empty journals were queried and deleted
+            # Verify empty notes were queried and deleted
             mock_db.query.assert_called()
-            mock_db.delete.assert_any_call(mock_empty_journal1)
-            mock_db.delete.assert_any_call(mock_empty_journal2)
+            mock_db.delete.assert_any_call(mock_empty_note1)
+            mock_db.delete.assert_any_call(mock_empty_note2)
             mock_db.commit.assert_called_once()
             mock_db.close.assert_called_once()
 
@@ -49,7 +49,7 @@ class TestScheduler:
             assert len(success_call) > 0
 
     @patch("app.scheduler.SessionLocal")
-    def test_delete_empty_journals_database_error(self, mock_session_local):
+    def test_delete_empty_notes_database_error(self, mock_session_local):
         """Test error handling when database operation fails"""
         # Mock database session that raises an exception
         mock_db = Mock()
@@ -58,7 +58,7 @@ class TestScheduler:
 
         # Capture print output to verify error handling
         with patch("builtins.print") as mock_print:
-            delete_empty_journals()
+            delete_empty_notes()
 
             # Verify error was handled gracefully
             mock_db.rollback.assert_called_once()
@@ -71,17 +71,17 @@ class TestScheduler:
             assert len(error_call) > 0
 
     @patch("app.scheduler.SessionLocal")
-    def test_delete_empty_journals_no_empty_journals(self, mock_session_local):
-        """Test function when there are no empty journals to delete"""
-        # Mock database session with no empty journals
+    def test_delete_empty_notes_no_empty_notes(self, mock_session_local):
+        """Test function when there are no empty notes to delete"""
+        # Mock database session with no empty notes
         mock_db = Mock()
         mock_session_local.return_value = mock_db
 
-        # Mock empty list - no empty journals found
+        # Mock empty list - no empty notes found
         mock_db.query.return_value.filter.return_value.all.return_value = []
 
         with patch("builtins.print") as mock_print:
-            delete_empty_journals()
+            delete_empty_notes()
 
             # Verify query was made
             mock_db.query.assert_called()
@@ -109,7 +109,7 @@ class TestScheduler:
         # Verify scheduler was created and configured
         mock_scheduler_class.assert_called_once()
         mock_scheduler.add_job.assert_called_once_with(
-            delete_empty_journals, "cron", hour=0, minute=0
+            delete_empty_notes, "cron", hour=0, minute=0
         )
         mock_scheduler.start.assert_called_once()
 
@@ -123,7 +123,7 @@ class TestScheduler:
 
         # Verify job was added with correct function and schedule
         call_args = mock_scheduler.add_job.call_args
-        assert call_args[0][0] == delete_empty_journals  # Function
+        assert call_args[0][0] == delete_empty_notes  # Function
         assert call_args[0][1] == "cron"  # Trigger type
         assert call_args[1]["hour"] == 0  # Midnight hour
         assert call_args[1]["minute"] == 0  # Midnight minute

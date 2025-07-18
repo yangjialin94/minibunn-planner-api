@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.journal import JournalOut
+from app.schemas.backlog import BacklogOut
 from app.schemas.note import NoteOut
 from app.schemas.task import TaskOut
 
@@ -43,7 +43,7 @@ class UserOutFull(BaseModel):
 
     tasks: List[TaskOut] = []
     notes: List[NoteOut] = []
-    journals: List[JournalOut] = []
+    backlogs: List[BacklogOut] = []
 
     model_config = ConfigDict(from_attributes=True)
 

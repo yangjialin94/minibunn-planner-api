@@ -9,7 +9,8 @@ class NoteCreate(BaseModel):
     Note Create Pydantic Schema (for POST requests)
     """
 
-    detail: Optional[str] = ""
+    date: date
+    entry: Optional[str] = ""
 
 
 class NoteUpdate(BaseModel):
@@ -17,8 +18,7 @@ class NoteUpdate(BaseModel):
     Note Update Pydantic Schema (for PUT requests)
     """
 
-    detail: Optional[str] = None
-    order: Optional[int] = None
+    entry: Optional[str] = None
 
 
 class NoteOut(BaseModel):
@@ -28,7 +28,6 @@ class NoteOut(BaseModel):
 
     id: int
     date: date
-    detail: Optional[str]
-    order: int
+    entry: Optional[str] = ""
 
     model_config = ConfigDict(from_attributes=True)

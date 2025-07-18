@@ -4,17 +4,17 @@ from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 
-class Journal(Base):
+class Backlog(Base):
     """
-    Journal Database Schema / SQLAlchemy ORM Model
+    Backlog Database Schema / SQLAlchemy ORM Model
     """
 
-    __tablename__ = "journals"
+    __tablename__ = "backlogs"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     date = Column(Date)
-    subject = Column(String)
-    entry = Column(String)
+    detail = Column(String)
+    order = Column(Integer)
 
-    user = relationship("User", back_populates="journals")
+    user = relationship("User", back_populates="backlogs")

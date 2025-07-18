@@ -14,7 +14,6 @@ class Note(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     date = Column(Date)
-    detail = Column(String)
-    order = Column(Integer)
+    entry = Column(String)
 
     user = relationship("User", back_populates="notes")

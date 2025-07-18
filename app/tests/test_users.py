@@ -32,7 +32,8 @@ class TestUserRoutes:
         assert data["email"] == "test@example.com"
         assert data["name"] == "Test User"
         assert "tasks" in data
-        assert "journals" in data
+        assert "notes" in data
+        assert "backlogs" in data
 
     def test_get_user_by_id_not_found(self, client):
         """Test retrieving non-existent user by ID"""

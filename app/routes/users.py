@@ -21,12 +21,14 @@ def get_users(
     db: Session = Depends(get_db),
 ):
     """
-    Get all users along with their tasks and journals.
+    Get all users along with their tasks, notes, and backlogs.
     This is for testing purposes only.
     """
     users = (
         db.query(User)
-        .options(joinedload(User.tasks), joinedload(User.journals))
+        .options(
+            joinedload(User.tasks), joinedload(User.notes), joinedload(User.backlogs)
+        )
         .order_by(User.id)
         .all()
     )
@@ -36,12 +38,14 @@ def get_users(
 @router.get("/by_id/{user_id}", response_model=UserOutFull)
 def get_user_with_data(user_id: int, db: Session = Depends(get_db)):
     """
-    Get a specific user by user id along with their tasks and journals.
+    Get a specific user by user id along with their tasks, notes, and backlogs.
     This is for testing purposes only.
     """
     user = (
         db.query(User)
-        .options(joinedload(User.tasks), joinedload(User.journals))
+        .options(
+            joinedload(User.tasks), joinedload(User.notes), joinedload(User.backlogs)
+        )
         .filter(User.id == user_id)
         .first()
     )

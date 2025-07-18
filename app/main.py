@@ -5,14 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import ENV, WEB_URL
 from app.core.database import Base
-from app.routes import journals, notes, stripe, tasks, users
+from app.routes import backlogs, notes, stripe, tasks, users
 from app.scheduler import start_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load models to register them with Base
-    from app.models import journal, task, user
+    from app.models import backlog, note, task, user
 
     # Initialize the scheduler
     start_scheduler()
@@ -47,6 +47,6 @@ app.add_middleware(
 # Include routers
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
-app.include_router(journals.router, prefix="/journals", tags=["journals"])
 app.include_router(notes.router, prefix="/notes", tags=["notes"])
+app.include_router(backlogs.router, prefix="/backlogs", tags=["backlogs"])
 app.include_router(stripe.router, prefix="/api/stripe", tags=["stripe"])

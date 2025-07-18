@@ -25,7 +25,7 @@ class User(Base):
     is_subscribed = Column(Boolean, default=False)
 
     tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
-    journals = relationship(
-        "Journal", back_populates="user", cascade="all, delete-orphan"
-    )
     notes = relationship("Note", back_populates="user", cascade="all, delete-orphan")
+    backlogs = relationship(
+        "Backlog", back_populates="user", cascade="all, delete-orphan"
+    )

@@ -1,6 +1,6 @@
 from .user import User
 from .task import Task
-from .journal import Journal
 from .note import Note
+from .backlog import Backlog
 
-__all__ = ["User", "Task", "Journal", "Note"]
+__all__ = ["User", "Task", "Note", "Backlog"]

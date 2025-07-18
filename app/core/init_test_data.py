@@ -2,8 +2,8 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from app.core.test_data import test_journals, test_tasks
-from app.models.journal import Journal
+from app.core.test_data import test_notes, test_tasks
+from app.models.note import Note
 from app.models.task import Task
 from app.models.user import User
 
@@ -11,7 +11,7 @@ from app.models.user import User
 def init_test_data(db: Session, reset: bool = False):
     if reset:
         db.query(Task).delete()
-        db.query(Journal).delete()
+        db.query(Note).delete()
         db.query(User).filter(User.id == 1).delete()
         db.commit()
         print("🧹 Reset test data")
@@ -33,9 +33,9 @@ def init_test_data(db: Session, reset: bool = False):
         db.merge(task)
     print("✅ Inserted test tasks")
 
-    for journal_data in test_journals:
-        journal = Journal(**journal_data)
-        db.merge(journal)
-    print("✅ Inserted test journals")
+    for note_data in test_notes:
+        note = Note(**note_data)
+        db.merge(note)
+    print("✅ Inserted test notes")
 
     db.commit()

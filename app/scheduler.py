@@ -5,35 +5,33 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.core.database import SessionLocal
-from app.models.journal import Journal
+from app.models.note import Note
 
 
-def delete_empty_journals():
+def delete_empty_notes():
     """
-    Deletes all journal entries that are empty (i.e., have no subject or entry).
+    Deletes all note entries that are empty (i.e., have no entry).
     """
     db = SessionLocal()
 
     try:
-        empty_journals = (
-            db.query(Journal).filter(Journal.subject == "", Journal.entry == "").all()
-        )
-        for journal in empty_journals:
-            db.delete(journal)
+        empty_notes = db.query(Note).filter(Note.entry == "").all()
+        for note in empty_notes:
+            db.delete(note)
         db.commit()
-        print(f"{datetime.now()}: Deleted {len(empty_journals)} empty journals.")
+        print(f"{datetime.now()}: Deleted {len(empty_notes)} empty notes.")
     except Exception as e:
         db.rollback()
-        print(f"Error deleting empty journals: {e}")
+        print(f"Error deleting empty notes: {e}")
     finally:
         db.close()
 
 
 def start_scheduler():
     """
-    Initializes the APScheduler and schedules the delete_empty_journals job
+    Initializes the APScheduler and schedules the delete_empty_notes job
     to run every day at midnight.
     """
     scheduler = BackgroundScheduler()
-    scheduler.add_job(delete_empty_journals, "cron", hour=0, minute=0)
+    scheduler.add_job(delete_empty_notes, "cron", hour=0, minute=0)
     scheduler.start()
